@@ -1,0 +1,76 @@
+{
+  "species_id": "boletus_edulis",
+  "latin_name": "Boletus edulis",
+  "common_name": "Steinpilz",
+  "german_name": "Fichten-Steinpilz",
+  "host_trees": [
+    "Picea abies",
+    "Fagus sylvatica",
+    "Abies alba",
+    "Quercus spp.",
+    "Pinus spp.",
+    "Betula spp."
+  ],
+  "preferred_soils": [
+    "acidic",
+    "weakly_acidic",
+    "neutral",
+    "nutrient_poor"
+  ],
+  "preferred_ph_min": null,
+  "preferred_ph_max": null,
+  "preferred_geologies": [
+    "granite",
+    "gneiss",
+    "schist",
+    "quartzite",
+    "silicate_sandstone",
+    "flysch_sandstone"
+  ],
+  "preferred_elevation_min_m": null,
+  "preferred_elevation_max_m": null,
+  "preferred_temperature_min_c": 10.0,
+  "preferred_temperature_max_c": 16.0,
+  "preferred_season_months": [],
+  "rain_response_min_days": 7,
+  "rain_response_max_days": 20,
+  "positive_indicator_plants": [
+    "moss",
+    "blueberry",
+    "heather"
+  ],
+  "negative_indicator_plants": [
+    "nettle",
+    "blackberry",
+    "dense_tall_grass"
+  ],
+  "habitat_notes": [
+    "Baseline sample only; ecological values require later source-by-source verification."
+  ],
+  "evidence": [
+    {
+      "field_name": "host_trees",
+      "level": "working_hypothesis",
+      "source_id": null,
+      "note": "Taken from the current internal knowledge baseline; scientific source set is not yet fixed."
+    },
+    {
+      "field_name": "preferred_temperature_min_c/preferred_temperature_max_c",
+      "level": "working_hypothesis",
+      "source_id": null,
+      "note": "Current baseline working range; not yet validated as a scientific species-wide parameter."
+    },
+    {
+      "field_name": "rain_response_min_days/rain_response_max_days",
+      "level": "working_hypothesis",
+      "source_id": null,
+      "note": "Current rainfall-response heuristic; intended for later validation and calibration."
+    },
+    {
+      "field_name": "positive_indicator_plants/negative_indicator_plants",
+      "level": "working_hypothesis",
+      "source_id": null,
+      "note": "Current field heuristic, not a hard ecological rule."
+    }
+  ]
+}

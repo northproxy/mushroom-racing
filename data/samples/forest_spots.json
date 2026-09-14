@@ -1,0 +1,17 @@
+[
+  {
+    "spot_id": "sample-mariensee-001",
+    "name": "Mariensee / Kampstein sample",
+    "host_tree_score": 0.95,
+    "soil_geology_score": 0.9,
+    "moisture_score": 0.85,
+    "temperature_season_score": 0.8,
+    "terrain_score": 0.9,
+    "forest_maturity_score": 0.8,
+    "indicator_vegetation_score": 0.9,
+    "observation_score": 0.5,
+    "data_completeness": 0.65,
+    "collecting_allowed": true,
+    "note": "Illustrative baseline only; not a validated current prediction."
+  }
+]

@@ -1,0 +1,53 @@
+mushroom-racing/
+├── .github/
+│   └── workflows/
+│       └── tests.yml
+├── .pytest_cache/
+│   ├── v/
+│   │   └── cache/
+│   │       └── nodeids
+│   ├── .gitignore
+│   ├── CACHEDIR.TAG
+│   └── README.md
+├── assets/
+│   └── README.md
+├── data/
+│   ├── processed/
+│   │   └── .gitkeep
+│   ├── raw/
+│   │   └── .gitkeep
+│   ├── samples/
+│   │   └── forest_spots.json
+│   └── README.md
+├── docs/
+│   ├── 00_PROJECT_BRIEF.md
+│   ├── 01_KNOWLEDGE_MODEL.md
+│   ├── 02_DATA_SOURCES.md
+│   ├── 03_SCORING_MODEL.md
+│   ├── 04_DATABASE_SCHEMA.md
+│   ├── 05_MVP.md
+│   ├── 06_FIELD_PROTOCOL.md
+│   ├── 07_ROADMAP.md
+│   ├── 08_DECISION_LOG.md
+│   ├── 09_GITHUB_SHOWCASE.md
+│   ├── 10_GLOSSARY.md
+│   └── 11_GITHUB_SETUP.md
+├── notebooks/
+│   └── README.md
+├── scripts/
+│   ├── demo_score.py
+│   └── README.md
+├── src/
+│   └── mushroom_racing/
+│       ├── __init__.py
+│       ├── models.py
+│       └── scoring.py
+├── tests/
+│   └── test_scoring.py
+├── .editorconfig
+├── .env.example
+├── .gitignore
+├── CHANGELOG.md
+├── pyproject.toml
+├── README.md
+└── REPO_TREE.txt

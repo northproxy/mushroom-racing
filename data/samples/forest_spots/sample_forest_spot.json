@@ -1,0 +1,36 @@
+{
+  "spot_id": "sample_mariensee_forest_001",
+  "name": "Sample forest spot near Mariensee",
+  "geometry": {
+    "type": "Point",
+    "coordinates": [16.05, 47.55]
+  },
+  "region": "Niederösterreich",
+  "country": "Austria",
+  "elevation_min_m": 900.0,
+  "elevation_max_m": 980.0,
+  "dominant_aspect_deg": 35.0,
+  "slope_deg": 18.0,
+  "forest_type": "mixed_conifer_broadleaf",
+  "tree_species": [
+    "Picea abies",
+    "Fagus sylvatica",
+    "Abies alba"
+  ],
+  "geology": "silicate_context_sample",
+  "soil_type": null,
+  "soil_ph": null,
+  "nutrient_level": null,
+  "canopy_density_pct": null,
+  "forest_age_class": null,
+  "disturbance_level": null,
+  "nearest_stream_m": null,
+  "protected_area": null,
+  "collecting_allowed": null,
+  "legal_notes": [
+    "Sample fixture only; legal collecting status has not been verified."
+  ],
+  "access_notes": [],
+  "static_data_confidence": 40.0,
+  "last_updated": "2026-09-14T14:00:00+02:00"
+}
