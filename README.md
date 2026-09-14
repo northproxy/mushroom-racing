@@ -1,50 +1,50 @@
 # mushroom-racing 🍄
 
-**Explainable geospatial mushroom-finding project for Austria.**
+**Объяснимый геопространственный проект для оценки перспективности грибных мест в Австрии.**
 
-`mushroom-racing` is a learning and portfolio project that aims to estimate how promising a forest area is for a target mushroom species by combining:
+`mushroom-racing` — учебный и портфельный проект, цель которого — оценивать, насколько перспективен конкретный лесной участок для целевого вида грибов, объединяя:
 
-- mushroom ecology;
-- forest composition;
-- soil and geology;
-- elevation, slope and aspect;
-- rainfall and temperature history;
-- drought and soil-moisture context;
-- legal/protected-area constraints;
-- field observations.
+- экологию грибов;
+- состав леса;
+- почвы и геологию;
+- высоту, уклон и экспозицию склона;
+- историю осадков и температуры;
+- контекст засухи и влажности почвы;
+- юридические ограничения и охраняемые территории;
+- полевые наблюдения.
 
-The first target is **Steinpilz / Boletus edulis** in Austria, with an initial research area of roughly **150 km around Vienna**.
+Первый целевой вид — **Steinpilz / Boletus edulis** в Австрии. Начальная область исследования — примерно **150 км вокруг Вены**.
 
-> The project does **not** claim to know where mushrooms are.  
-> It builds an explainable probability model that can be tested and improved with real observations.
+> Проект **не утверждает, что знает, где находятся грибы**.  
+> Он строит объяснимую вероятностную модель, которую можно проверять и улучшать на основе реальных наблюдений.
 
-## Current status
+## Текущее состояние
 
-**Phase: MR-1 — Domain model complete; next: MR-2 data-source PoC**
+**Фаза: MR-1 — Domain model завершён; следующий этап — MR-2 data-source PoC**
 
-Implemented now:
+Сейчас реализованы:
 
-- project structure;
-- knowledge-model baseline;
-- first explainable scoring prototype;
-- stable MR-1 domain model (`SpeciesProfile`, `ForestSpot`, `WeatherSnapshot`, `Observation`);
-- explicit evidence levels and missing-data semantics;
-- JSON sample fixtures and serialization/validation tests;
-- tests;
-- GitHub Actions test workflow;
-- MVP, data-source, schema and field-protocol documentation.
+- структура проекта;
+- базовая knowledge model;
+- первый объяснимый прототип scoring;
+- стабильная domain model MR-1 (`SpeciesProfile`, `ForestSpot`, `WeatherSnapshot`, `Observation`);
+- явные evidence levels и правила представления отсутствующих данных;
+- JSON sample fixtures и тесты сериализации/валидации;
+- тесты;
+- GitHub Actions workflow для запуска тестов;
+- документация MVP, источников данных, схемы и полевого протокола.
 
-Not implemented yet:
+Пока не реализованы:
 
-- live weather ingestion;
+- загрузка актуальной погоды;
 - production GIS/data-source adapters;
 - geospatial feature extraction pipeline;
-- map UI;
-- database;
+- интерфейс карты;
+- база данных;
 - mobile/web frontend;
-- ML model.
+- ML-модель.
 
-## Core idea
+## Основная идея
 
 ```text
 Species knowledge
@@ -64,13 +64,13 @@ Calibration
 Map + recommendations
 ```
 
-The app should eventually answer questions like:
+В перспективе приложение должно отвечать на вопросы вроде:
 
-> “Which forest sectors within driving distance are most promising for Steinpilz today, and why?”
+> «Какие лесные участки в пределах доступного расстояния сегодня наиболее перспективны для Steinpilz и почему?»
 
-A useful prediction must include **both score and explanation**.
+Полезный прогноз должен содержать **и score, и объяснение**.
 
-Example:
+Пример:
 
 ```text
 Opportunity score: 84/100
@@ -84,9 +84,9 @@ Confidence: 67/100
 - severe rainfall deficit over the previous 60 days
 ```
 
-## Documentation
+## Документация
 
-Start here:
+Начинать лучше отсюда:
 
 1. [`docs/00_PROJECT_BRIEF.md`](docs/00_PROJECT_BRIEF.md)
 2. [`docs/01_KNOWLEDGE_MODEL.md`](docs/01_KNOWLEDGE_MODEL.md)
@@ -102,7 +102,7 @@ Start here:
 12. [`docs/11_GITHUB_SETUP.md`](docs/11_GITHUB_SETUP.md)
 13. [`docs/TECH_STACK.md`](docs/TECH_STACK.md)
 
-## Repository structure
+## Структура репозитория
 
 ```text
 mushroom-racing/
@@ -127,63 +127,65 @@ mushroom-racing/
 └── README.md
 ```
 
-## Quick start
+## Быстрый старт
 
-Requires Python 3.12+.
+Требуется Python 3.12+.
+
+Создать виртуальное окружение:
 
 ```bash
 python -m venv .venv
 ```
 
-Windows:
+Windows PowerShell:
 
 ```powershell
-.venv\Scripts\activate
+.\.venv\Scripts\Activate.ps1
 ```
 
-Install development dependencies:
+Установить зависимости для разработки:
 
 ```bash
 python -m pip install -e ".[dev]"
 ```
 
-Run tests:
+Запустить тесты:
 
 ```bash
 pytest
 ```
 
-Run the tiny baseline demo:
+Запустить небольшой baseline demo:
 
 ```bash
 python scripts/demo_score.py
 ```
 
-## Project principles
+## Принципы проекта
 
-- **Evidence before confidence.**
-- **Explainable before clever.**
-- **Rules before ML.**
-- **No hidden assumptions.**
-- **Negative field observations are data too.**
-- **Legal exclusions are hard filters, not score penalties.**
-- **A prediction always carries a confidence value.**
+- **Сначала доказательства, потом уверенность.**
+- **Сначала объяснимость, потом сложность.**
+- **Сначала правила, потом ML.**
+- **Никаких скрытых предположений.**
+- **Отрицательные полевые наблюдения — тоже данные.**
+- **Юридические ограничения — hard filters, а не штрафы score.**
+- **Любой прогноз должен иметь показатель confidence.**
 
-## GitHub goal
+## Цель GitHub-репозитория
 
-The repository is intended to demonstrate:
+Репозиторий должен демонстрировать:
 
-- structured technical research;
-- geospatial/data thinking;
-- Python fundamentals;
-- test-driven iteration;
+- структурированное техническое исследование;
+- мышление в терминах geospatial/data задач;
+- владение основами Python;
+- разработку с опорой на тесты;
 - explainable scoring;
-- data modelling;
-- documentation discipline;
-- gradual transition from rule-based logic to calibrated models.
+- проектирование структуры данных;
+- дисциплину документации;
+- постепенный переход от rule-based логики к откалиброванным моделям.
 
-## Safety
+## Безопасность
 
-Never rely on this project to determine whether a mushroom is edible.
+Нельзя использовать этот проект для определения съедобности гриба.
 
-Species identification and food safety are a separate problem from habitat prediction.
+Определение вида и безопасность употребления грибов — отдельная задача, не связанная напрямую с прогнозированием habitat suitability.

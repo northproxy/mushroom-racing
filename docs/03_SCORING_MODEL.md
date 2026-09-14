@@ -1,90 +1,90 @@
 # 03 — Scoring Model
 
-## Design principle
+## Принцип проектирования
 
-The first model is **rule-based and explainable**.
+Первая модель — **rule-based и explainable**.
 
-We do not start with machine learning.
+Мы не начинаем с machine learning.
 
-The model separates:
+Модель разделяет:
 
-1. **Habitat Score** — how suitable the place is in general.
-2. **Current Conditions Score** — whether current weather supports fruiting.
-3. **Access / Legal Filter** — whether the place can be used.
-4. **Confidence Score** — how complete/reliable the input data are.
-5. **Opportunity Score** — final recommendation for the current date.
+1. **Habitat Score** — насколько участок подходит виду в принципе.
+2. **Current Conditions Score** — насколько текущая погода поддерживает плодоношение.
+3. **Access / Legal Filter** — можно ли использовать участок с точки зрения доступа и правил.
+4. **Confidence Score** — насколько полны и надёжны входные данные.
+5. **Opportunity Score** — итоговая рекомендация для текущей даты.
 
-## Proposed feature groups
+## Предлагаемые группы признаков
 
-| Group | Initial weight |
+| Группа | Начальный вес |
 |---|---:|
-| host trees | 25% |
-| soil + geology | 20% |
-| rainfall + moisture | 20% |
-| temperature + season | 10% |
-| elevation + slope + aspect | 10% |
-| forest maturity / disturbance | 5% |
-| indicator vegetation | 5% |
-| observations | 5% |
+| деревья-хозяева | 25% |
+| почва + геология | 20% |
+| осадки + влажность | 20% |
+| температура + сезон | 10% |
+| высота + уклон + экспозиция | 10% |
+| зрелость леса / disturbance | 5% |
+| растения-индикаторы | 5% |
+| наблюдения | 5% |
 
-These are **baseline weights**, not validated scientific parameters.
+Это **baseline weights**, а не научно подтверждённые параметры.
 
 ## Hard exclusions
 
-The following do not merely reduce score:
+Следующие факторы не просто уменьшают score:
 
-- collection prohibited;
-- access prohibited;
-- protected core zone where collecting is forbidden.
+- сбор запрещён;
+- доступ запрещён;
+- участок находится в protected core zone, где сбор запрещён.
 
-For those cases:
+В таких случаях:
 
 ```text
 eligible = false
 ```
 
-## Initial ecological heuristics
+## Начальные экологические эвристики
 
-### Positive
-
-```text
-Fichte dominant                  strong positive
-Fichte + Buche/Tanne             very strong positive
-acidic silicate geology          positive
-Podsol / acidic soil             positive
-Moos                             positive
-Heidelbeere                      positive
-N / NE / NW slope after drought  positive
-shaded hollow                    positive
-```
-
-### Negative
+### Положительные
 
 ```text
-Brennnessel                      negative indicator
-dense Brombeere                  negative indicator
-dense tall grass                 negative indicator
-recent clearcut                  strong negative
-dry exposed ridge                strong negative
-carbonate-rich soil              negative for B. edulis baseline
+Fichte dominant                  сильный положительный признак
+Fichte + Buche/Tanne             очень сильный положительный признак
+acidic silicate geology          положительный признак
+Podsol / acidic soil             положительный признак
+Moos                             положительный признак
+Heidelbeere                      положительный признак
+N / NE / NW slope after drought  положительный признак
+shaded hollow                    положительный признак
 ```
 
-## Timing after rainfall
+### Отрицательные
 
-Initial working curve:
+```text
+Brennnessel                      отрицательный индикатор
+dense Brombeere                  отрицательный индикатор
+dense tall grass                 отрицательный индикатор
+recent clearcut                  сильный отрицательный признак
+dry exposed ridge                сильный отрицательный признак
+carbonate-rich soil              отрицательный baseline-признак для B. edulis
+```
 
-| Days after meaningful wetting | Relative timing score |
+## Задержка после осадков
+
+Начальная рабочая кривая:
+
+| Дней после значимого увлажнения | Относительный timing score |
 |---:|---:|
-| 0–3 | low |
-| 4–6 | rising |
-| 7–10 | good |
-| 10–16 | very good |
-| 17–20 | good |
-| >20 | depends on subsequent rain/temp |
+| 0–3 | низкий |
+| 4–6 | растёт |
+| 7–10 | хороший |
+| 10–16 | очень хороший |
+| 17–20 | хороший |
+| >20 | зависит от последующих осадков и температуры |
 
-The “meaningful wetting event” itself must consider prior drought.
+Само понятие «значимое увлажнение» должно учитывать предшествующую засуху.
 
-## Important interaction
+## Важное взаимодействие факторов
 
 ```text
 30 mm rain after a normal month
@@ -92,13 +92,13 @@ The “meaningful wetting event” itself must consider prior drought.
 30 mm rain after three months of drought
 ```
 
-The scoring engine will therefore eventually require a drought/history correction.
+Поэтому scoring engine в дальнейшем потребуется корректировка по drought/history context.
 
-## Explainability contract
+## Контракт объяснимости
 
-Every final score should return reasons.
+Каждый итоговый score должен возвращать причины.
 
-Example:
+Пример:
 
 ```json
 {
@@ -114,27 +114,27 @@ Example:
 }
 ```
 
-## Baseline code
+## Baseline-код
 
-The code in `src/mushroom_racing/scoring.py` is intentionally simple.
+Код в `src/mushroom_racing/scoring.py` намеренно остаётся простым.
 
-Its job is to establish:
+Его задача — зафиксировать:
 
-- interfaces;
-- tests;
-- explainable output;
-- a stable baseline.
+- интерфейсы;
+- тесты;
+- объяснимый результат;
+- стабильный baseline.
 
-It is **not** yet a validated biological predictor.
+Это **ещё не валидированный биологический predictor**.
 
-## Validation strategy
+## Стратегия validation
 
-Later model changes should be measured against:
+Будущие изменения модели нужно оценивать по:
 
-- positive observations;
-- negative searched observations;
-- calibration by region;
-- calibration by season;
-- calibration by species.
+- положительным наблюдениям;
+- отрицательным наблюдениям после реального поиска;
+- calibration по регионам;
+- calibration по сезонам;
+- calibration по видам.
 
-Avoid evaluating only on known mushroom finds because that produces severe selection bias.
+Нельзя оценивать модель только на известных грибных находках, потому что это создаёт сильный selection bias.

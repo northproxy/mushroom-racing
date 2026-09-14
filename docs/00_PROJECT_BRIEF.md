@@ -1,108 +1,108 @@
-# 00 — Project Brief
+# 00 — Краткое описание проекта
 
-## Project name
+## Название проекта
 
 **mushroom-racing**
 
-## Problem
+## Проблема
 
-Mushroom hunters often combine many weak signals:
+Грибники обычно одновременно учитывают множество слабых сигналов:
 
-- tree species;
-- soil;
-- moss and indicator plants;
-- recent rainfall;
-- temperature;
-- slope exposure;
-- local humidity;
-- season;
-- personal knowledge of productive spots.
+- древесные породы;
+- почву;
+- мох и растения-индикаторы;
+- недавние осадки;
+- температуру;
+- экспозицию склона;
+- локальную влажность;
+- сезон;
+- личные знания о продуктивных местах.
 
-These signals are usually kept mentally and are difficult to compare systematically.
+Обычно эти признаки хранятся в голове и плохо поддаются систематическому сравнению.
 
-The project asks:
+Проект отвечает на вопрос:
 
-> Can we turn that reasoning into an explainable, testable geospatial model?
+> Можно ли превратить такое рассуждение в объяснимую и проверяемую геопространственную модель?
 
-## Initial scope
+## Начальный scope
 
-### Geography
+### География
 
-Austria, beginning with approximately **150 km around Vienna**.
+Австрия, начиная примерно с **радиуса 150 км вокруг Вены**.
 
-### Species
+### Вид
 
-Version 0.x focuses on:
+Версия 0.x фокусируется на:
 
 - **Boletus edulis / Fichten-Steinpilz**
 
-Related Steinpilz species are documented but should not initially be merged into one ecological profile.
+Родственные виды Steinpilz документируются отдельно и на первом этапе не должны автоматически объединяться в один экологический профиль.
 
-### Initial research zones
+### Начальные исследовательские регионы
 
-- Wechsel
-- Semmering
-- western Wienerwald
-- later: Dunkelsteinerwald / Jauerling
-- later: Waldviertel
-- later: Rax / Schneeberg
-- later: Rosaliengebirge
-- later: Leithagebirge
+- Wechsel;
+- Semmering;
+- западный Wienerwald;
+- позже: Dunkelsteinerwald / Jauerling;
+- позже: Waldviertel;
+- позже: Rax / Schneeberg;
+- позже: Rosaliengebirge;
+- позже: Leithagebirge.
 
-## User problem
+## Пользовательская задача
 
-A user should eventually be able to:
+В перспективе пользователь должен иметь возможность:
 
-1. choose a mushroom species;
-2. choose a search radius or map area;
-3. see candidate forest sectors;
-4. rank them by current opportunity;
-5. understand *why* each sector has that score;
-6. avoid legally restricted areas;
-7. record positive and negative field observations;
-8. improve future predictions with accumulated evidence.
+1. выбрать вид гриба;
+2. выбрать радиус поиска или область на карте;
+3. увидеть кандидатные лесные участки;
+4. ранжировать их по текущей перспективности;
+5. понимать, *почему* каждый участок получил такой score;
+6. избегать участков с юридическими ограничениями;
+7. сохранять положительные и отрицательные полевые наблюдения;
+8. улучшать будущие прогнозы на основе накопленных данных.
 
-## Non-goals for the first version
+## Что не является целью первой версии
 
-The project does **not** initially attempt to:
+На первом этапе проект **не пытается**:
 
-- identify mushrooms from images;
-- certify edibility;
-- guarantee presence of fruiting bodies;
-- create a black-box ML predictor;
-- reveal private user hotspots publicly;
-- optimize commercial harvesting.
+- определять грибы по фотографии;
+- подтверждать съедобность;
+- гарантировать наличие плодовых тел;
+- создавать black-box ML predictor;
+- публично раскрывать приватные пользовательские hotspots;
+- оптимизировать коммерческий сбор грибов.
 
-## Success criteria for MVP
+## Критерии успеха MVP
 
-MVP is successful if it can:
+MVP считается успешным, если он умеет:
 
-- represent a forest spot;
-- represent a species ecology profile;
-- ingest or manually accept weather/geodata features;
-- calculate explainable sub-scores;
-- apply hard legal exclusions;
-- produce a final opportunity score + confidence;
-- store a field observation;
-- compare candidate locations.
+- представлять лесной участок;
+- представлять экологический профиль вида;
+- принимать погодные и геопространственные признаки вручную или через import pipeline;
+- рассчитывать объяснимые sub-scores;
+- применять hard legal exclusions;
+- выдавать итоговый opportunity score и confidence;
+- сохранять полевое наблюдение;
+- сравнивать кандидатные участки.
 
-## Evidence policy
+## Политика доказательности
 
-Every ecological rule should eventually be tagged as one of:
+Каждое значимое экологическое правило в перспективе должно иметь один из evidence levels:
 
 - `confirmed_source`
 - `expert_heuristic`
 - `field_observation`
 - `working_hypothesis`
 
-No working hypothesis should silently become a “fact”.
+Рабочая гипотеза не должна незаметно превращаться в «факт».
 
-## Portfolio angle
+## Портфельная цель
 
-The repository should visibly demonstrate:
+Репозиторий должен наглядно демонстрировать:
 
 - research → specification → implementation;
-- explicit assumptions;
-- reproducible milestones;
-- testing and validation;
-- gradual increase in model sophistication.
+- явные предположения;
+- воспроизводимые milestones;
+- тестирование и validation;
+- постепенное усложнение модели.
