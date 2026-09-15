@@ -552,3 +552,114 @@ full repository suite: 210 passed in 0.38s
 offline integration fixture: PASS
 live GeospatialFeatureSet smoke: PASS
 ```
+
+---
+
+## ADR-013 — Missing data, legal eligibility и ecological eligibility разделяются в scoring
+
+**Статус:** accepted
+
+### Решение
+
+Scoring layer явно различает:
+
+```text
+known ecological value
+missing ecological value
+legal eligibility
+ecological eligibility
+confidence
+```
+
+Scoring components могут иметь тип:
+
+```text
+float | None
+```
+
+`None` означает unknown и не превращается автоматически в:
+
+```text
+0.0
+0.5
+False
+```
+
+Legal и ecological eligibility хранятся отдельно.
+
+```text
+collecting_allowed=False
+    → hard legal exclusion
+
+collecting_allowed=None
+    → legal status unknown
+
+ecologically_eligible=False
+    → ecological exclusion
+
+ecologically_eligible=None
+    → ecological eligibility unknown
+```
+
+Общий `eligible=True` возможен только тогда, когда обе eligibility
+известны и обе равны `True`.
+
+### Confidence
+
+Confidence не умножается на Opportunity Score и не используется как
+скрытый ecological penalty.
+
+Он отвечает на отдельный вопрос:
+
+> насколько полно представлены ожидаемые входные данные?
+
+Missing scoring component исключается из ecological weighted average,
+но уменьшает Confidence через coverage доступных компонентов.
+
+### Почему
+
+Это предотвращает несколько классов ошибок:
+
+- отсутствие tree-species data не становится плохим tree-species score;
+- неизвестная geology не становится neutral geology `0.5`;
+- неизвестный legal status не становится разрешением или запретом;
+- `ForestStatus.UNKNOWN` не становится `NON_FOREST`;
+- высокий ecological score при низкой полноте данных остаётся видимым
+  как высокий score с низким Confidence, а не скрыто уменьшается.
+
+### Species-specific interpretation
+
+Forest, geology, terrain и weather интерпретируются после
+`GeospatialFeatureSet`.
+
+На текущем этапе:
+
+```text
+FOREST
+    → ecological prerequisite satisfied
+
+NON_FOREST
+    → ecological exclusion
+
+raw geology
+    → Steinpilz geology affinity
+    → optional soil_geology_score
+
+terrain
+    → Steinpilz terrain baseline
+```
+
+Неподтверждённые thresholds и числовые mappings остаются
+`working_hypothesis` и не требуют отдельного ADR при локальной
+калибровке.
+
+### Validation
+
+Решение подтверждено последовательными MR-5 scenario tests.
+
+Текущее состояние после MR-5.3c:
+
+```text
+full repository suite: 244 passed in 0.39s
+```
+

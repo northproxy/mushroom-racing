@@ -127,6 +127,186 @@ carbonate-rich soil              отрицательный baseline-призн�
 
 Это **ещё не валидированный биологический predictor**.
 
+
+## Текущее состояние Steinpilz v0.1
+
+MR-5 реализуется постепенно поверх уже существующего baseline scoring,
+без переписывания работающей модели целиком.
+
+Текущий pipeline:
+
+```text
+GeospatialFeatureSet
+        ↓
+species-specific interpretation
+        ↓
+SpotFeatures
+        ↓
+score_spot()
+        ↓
+ScoreResult
+```
+
+### Missing-data semantics
+
+Scoring components допускают:
+
+```text
+float | None
+```
+
+`None` означает, что соответствующий признак неизвестен.
+
+Он:
+
+- не превращается в `0.0`;
+- не получает искусственный neutral score `0.5`;
+- исключается из weighted average;
+- снижает Confidence через уменьшение coverage доступных признаков.
+
+Если для score нет ни одного известного компонента:
+
+```text
+score = None
+```
+
+Confidence рассчитывается отдельно от ecological suitability.
+
+Высокий Opportunity Score при низком Confidence допустим и означает:
+
+> известные признаки выглядят благоприятно, но входных данных пока мало.
+
+### Legal и ecological eligibility
+
+Legal status и ecological eligibility не смешиваются.
+
+```text
+collecting_allowed=False
+    → hard legal exclusion
+
+collecting_allowed=None
+    → legal status unknown
+    → не automatic allow
+    → не hard exclusion
+
+ecologically_eligible=False
+    → ecological exclusion
+
+ecologically_eligible=None
+    → ecological eligibility unknown
+    → не exclusion
+```
+
+Общий `eligible` становится `True` только когда legal и ecological
+eligibility известны и оба равны `True`.
+
+### Forest interpretation
+
+Forest mask используется как prerequisite:
+
+```text
+FOREST
+    → ecologically_eligible=True
+
+NON_FOREST
+    → ecologically_eligible=False
+
+UNKNOWN
+    → ecologically_eligible=None
+```
+
+`FOREST` сам по себе не даёт положительный Habitat Score, поскольку
+forest mask не содержит tree-species composition или forest maturity.
+
+### Geology interpretation
+
+Raw `GeologyQueryResult` интерпретируется только после
+`GeospatialFeatureSet`.
+
+Baseline affinity:
+
+```text
+FAVOURABLE
+UNFAVOURABLE
+MIXED
+UNKNOWN
+```
+
+Текущий v0.1 mapping:
+
+```text
+FAVOURABLE    → soil_geology_score = 0.75
+UNFAVOURABLE  → soil_geology_score = 0.25
+MIXED         → None
+UNKNOWN       → None
+```
+
+Это **working hypothesis**, а не научно подтверждённая шкала.
+
+Geology является только bedrock proxy и не должна интерпретироваться
+как измеренный soil pH, soil type или carbonate content почвы.
+
+### Terrain interpretation
+
+Текущий terrain component использует:
+
+```text
+elevation
+slope
+aspect
+```
+
+Все thresholds являются мягкими v0.1 working hypotheses.
+
+Aspect имеет намеренно слабое влияние, потому что его значение особенно
+зависит от moisture/drought context, которого в текущем scoring ещё нет.
+
+Для контрольной точки:
+
+```text
+elevation: 1212 m
+slope:     13.23°
+aspect:    341.565° / NNW
+```
+
+текущий baseline даёт:
+
+```text
+terrain_score = 0.65
+```
+
+### Пока не реализовано в Steinpilz interpretation
+
+Следующие признаки по-прежнему остаются неизвестными и не имитируются:
+
+```text
+host tree score
+forest soil / pH
+forest maturity
+indicator vegetation
+field observation contribution
+rainfall / moisture score
+temperature / season score
+90-day rainfall context
+rainfall anomaly
+soil moisture
+drought index
+```
+
+Следующий шаг MR-5 — weather interpretation, начиная с temperature.
+
+### Текущая validation
+
+После MR-5.3c:
+
+```text
+full repository suite: 244 passed in 0.39s
+```
+
+Это подтверждает текущие contracts и scenario semantics, но не является
+биологической validation модели.
+
+
 ## Стратегия validation
 
 Будущие изменения модели нужно оценивать по:

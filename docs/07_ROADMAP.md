@@ -359,18 +359,193 @@ Status: deferred
 
 ## MR-5 --- Steinpilz v0.1 scoring
 
-Результат:
+**Статус:** in progress
 
+Цель:
+
+-   species-specific interpretation поверх `GeospatialFeatureSet`;
 -   habitat score;
 -   current conditions score;
 -   opportunity score;
 -   confidence;
--   explanation.
+-   explanation;
+-   корректная работа с missing data и legal/ecological eligibility.
 
-Проверка:
+Архитектура:
+
+``` text
+GeospatialFeatureSet
+        ↓
+Steinpilz interpretation
+        ↓
+SpotFeatures
+        ↓
+score_spot()
+        ↓
+ScoreResult
+```
+
+### MR-5.1 — tri-state legal semantics ✅
+
+Реализовано:
+
+``` text
+collecting_allowed=True
+    → legal status known allowed
+
+collecting_allowed=False
+    → hard legal exclusion
+
+collecting_allowed=None
+    → unknown
+    → не automatic allow
+    → не hard exclusion
+```
+
+### MR-5.2 — missing-data aware scoring ✅
+
+Реализовано:
+
+-   scoring components поддерживают `float | None`;
+-   `None` не превращается в `0` или artificial neutral `0.5`;
+-   missing component исключается из weighted average;
+-   Confidence считается отдельно по coverage доступных компонентов;
+-   полностью отсутствующие компоненты дают `score=None`, а не `0`.
+
+### MR-5.3a — forest interpretation / ecological eligibility ✅
+
+Реализовано:
+
+``` text
+FOREST
+    → ecologically_eligible=True
+
+NON_FOREST
+    → ecological hard exclusion
+
+UNKNOWN
+    → ecologically_eligible=None
+    → не exclusion
+```
+
+Forest presence не превращается автоматически в положительный habitat
+score.
+
+### MR-5.3b — geology interpretation ✅
+
+Добавлен species-specific geology layer.
+
+Raw geology классифицируется как:
+
+``` text
+FAVOURABLE
+UNFAVOURABLE
+MIXED
+UNKNOWN
+```
+
+Текущий v0.1 mapping:
+
+``` text
+FAVOURABLE    → soil_geology_score = 0.75
+UNFAVOURABLE  → soil_geology_score = 0.25
+MIXED         → None
+UNKNOWN       → None
+```
+
+Значения являются working hypotheses.
+
+Geology остаётся bedrock proxy и не подменяет soil type или soil pH.
+
+### MR-5.3c — terrain interpretation ✅
+
+Используются:
+
+``` text
+elevation
+slope
+aspect
+```
+
+Aspect имеет слабое влияние до появления drought context.
+
+Для контрольной точки:
+
+``` text
+1212 m
+13.23°
+341.565° / NNW
+```
+
+текущий baseline:
+
+``` text
+terrain_score = 0.65
+```
+
+### Текущее состояние scoring inputs
+
+Для live control coordinate после MR-5.3c:
+
+``` text
+ecologically_eligible = True
+
+host_tree_score = None
+soil_geology_score = 0.25
+moisture_score = None
+temperature_season_score = None
+terrain_score = 0.65
+forest_maturity_score = None
+indicator_vegetation_score = None
+observation_score = None
+
+collecting_allowed = None
+```
+
+Пока не имитируются отсутствующие:
+
+-   tree-species data;
+-   forest-soil data;
+-   drought context;
+-   field observations;
+-   forest maturity;
+-   vegetation indicators.
+
+### Следующий шаг
+
+``` text
+MR-5.3d — weather interpretation
+```
+
+Сначала:
+
+``` text
+temperature interpretation
+```
+
+затем отдельно:
+
+``` text
+rainfall interpretation
+```
+
+Rainfall slice должен учитывать, что пока отсутствуют `rain_90d`,
+rainfall anomaly, soil moisture и drought context.
+
+### Проверка
+
+Текущий repository-level validation после MR-5.3c:
+
+``` text
+244 passed in 0.39s
+```
+
+Дальнейшая проверка:
 
 -   scenario tests;
--   comparison against documented field observations.
+-   full repository `pytest`;
+-   после появления достаточных observations — comparison against
+    documented positive и negative field observations.
 
 ## MR-6 --- Interactive Map MVP
 
