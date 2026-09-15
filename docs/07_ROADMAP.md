@@ -57,30 +57,72 @@ python -m compileall -q src tests
 
 ## MR-2 — Austrian data-source proof of concept
 
-Результат:
+**Статус:** in progress
 
-- один воспроизводимый forest layer;
-- один DEM access workflow;
-- один geology layer;
+### DEM / terrain block ✅
+
+Завершены:
+
+- `ElevationProvider` / `ElevationWindow` contract;
+- live `AustrianElevationProvider`;
+- elevation validation against authoritative NÖ Atlas / DGM sample;
+- `TerrainFeatures` extraction: elevation / slope / aspect;
+- Horn 3x3 slope/aspect calculation;
+- EPSG:3857 local ground-scale correction;
+- persistent `CachedElevationProvider`;
+- atomic `.npz` cache writes;
+- namespace-based cache invalidation;
+- cross-process live cache-hit validation.
+
+Проверка после MR-2.4:
+
+```text
+84 passed in 0.21s
+```
+
+DEM / terrain pipeline:
+
+```text
+authoritative DGM
+        ↓
+operational provider
+        ↓
+persistent local cache
+        ↓
+ElevationWindow
+        ↓
+elevation / slope / aspect
+```
+
+### Осталось в MR-2
+
+- один воспроизводимый geology layer;
+- один forest layer;
 - один protected-area layer;
-- документированные лицензии.
+- документированные лицензии для выбранных источников.
 
-Проверка:
+Следующий блок:
 
-- repeatable import/query script;
+```text
+GeoSphere geology query / download PoC
+```
+
+Definition of Done MR-2:
+
+- repeatable import/query workflow для выбранных P0 layers;
 - sample output сохраняется там, где это разрешает лицензия;
-- operational DEM access сверяется с authoritative DGM.
+- source / license / access limitations документированы;
+- operational data path проверен воспроизводимо.
 
 ## MR-3 — Geospatial feature extraction
 
 Результат:
 
-- elevation;
-- slope;
-- aspect;
+- интеграция уже реализованных elevation / slope / aspect;
 - forest mask;
 - geology class;
-- legal eligibility.
+- legal eligibility;
+- единый geospatial feature assembly для scoring.
 
 Проверка:
 
@@ -119,10 +161,22 @@ python -m compileall -q src tests
 
 Результат:
 
+- web-карта на MapLibre GL JS;
+- `basemap.at` как default presentation basemap;
+- собственный `mushroom-racing` analytical overlay поверх basemap;
 - candidate forest cells;
-- score visualization;
-- spot details;
-- legal exclusions.
+- opportunity / habitat score visualization;
+- переключение релевантных аналитических слоёв;
+- spot details / explainability при выборе участка;
+- legal exclusions;
+- корректная attribution для basemap.at и других отображаемых источников.
+
+Проверка:
+
+- карта воспроизводимо запускается локально;
+- basemap и analytical overlay загружаются независимо;
+- scoring core не зависит от доступности basemap;
+- перед интеграцией подтверждены актуальный production endpoint и условия использования basemap.at.
 
 ## MR-7 — Field observation workflow
 

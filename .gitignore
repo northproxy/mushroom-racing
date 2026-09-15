@@ -24,6 +24,10 @@ data/raw/*
 !data/raw/.gitkeep
 data/processed/*
 !data/processed/.gitkeep
+
+# Runtime caches
+.cache/
+
 /tmp
 
 # Notebook noise

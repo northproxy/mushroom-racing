@@ -117,19 +117,6 @@ Authoritative elevation source — официальный Austrian Digital Eleva
 
 Operational provider принимается только после проверки на нескольких контрольных точках против authoritative DGM с зафиксированной допустимой погрешностью.
 
-Для MR02 `AustrianElevationProvider` проверен на четырёх точках против `NÖ Atlas → Gelände`.
-
-Результат validation sample:
-
-```text
-maximum absolute error: 2.80 m
-mean absolute error: 1.45 m
-RMSE: approximately 1.80 m
-MR02 PoC acceptance threshold: <= 5 m absolute error
-```
-
-Все четыре контрольные точки прошли критерий MR02 PoC. Этот критерий относится только к выбранной validation sample и не является гарантией точности provider-а по всей Австрии.
-
 ### Следствие
 
 ```text
@@ -242,91 +229,73 @@ known zero / false
 
 ---
 
-## ADR-009 — Для MR02 operational DEM используется lightweight HTTP provider
+## ADR-009 — basemap.at используется как default presentation basemap
 
 **Статус:** accepted
 
 ### Решение
 
-Для MR02 PoC operational elevation access выполняется через `AustrianElevationProvider`, который получает небольшие 10-метровые raster rows по HTTP и возвращает нормализованный `ElevationWindow`.
+Для web-карты `mushroom-racing` базовой картографической подложкой по умолчанию является **basemap.at**.
 
-Authoritative source при этом не меняется:
+Клиентская карта строится на **MapLibre GL JS**. Поверх базовой карты отображаются собственные аналитические слои `mushroom-racing`, например:
 
-- Land Niederösterreich DGM 10 m — основной source of truth для стартовой зоны;
-- Geoland.at DGM Österreich 10 m — nationwide fallback.
+- opportunity / habitat score;
+- forest / geology context;
+- weather-derived layers;
+- legal exclusions;
+- observations.
 
-`AustrianElevationProvider` является transport/access layer и не считается authoritative dataset.
+`basemap.at` используется как **presentation basemap**, а не как источник признаков scoring model.
+
+DEM, geology, forest, weather, protected areas и legal rules продолжают поступать из отдельно выбранных и валидированных authoritative sources.
 
 ### Почему
 
-Прямой HTTP Range access к официальному архиву Land Niederösterreich технически подтверждён: сервер отвечает `206 Partial Content` и поддерживает byte ranges.
+- basemap.at основана на официальных геоданных австрийских администраций;
+- покрывает территорию Австрии;
+- допускает свободное использование по CC BY 4.0 при корректной атрибуции;
+- позволяет не создавать и не обслуживать собственную базовую карту;
+- соответствует free-first подходу проекта;
+- MapLibre уже выбран как предпочтительный frontend map renderer;
+- разделение presentation и analytical data сохраняет прозрачность происхождения scoring features.
 
-Для прямого чтения GeoTIFF был исследован Rasterio/GDAL, но на основной Windows development-машине действующая Code Integrity policy блокирует нативный модуль Rasterio (`_err.cp314-win_amd64.pyd`) из-за требований к уровню подписи.
+### Attribution
 
-Проект не отключает и не ослабляет системную защиту ради GIS-библиотеки.
-
-Lightweight HTTP provider позволяет:
-
-- продолжить MR02 без полного GeoTIFF;
-- сохранить provider abstraction;
-- тестировать parsing и coordinate conversion без native GIS runtime;
-- получать небольшие окна вместо гигабайтного файла;
-- валидировать результат против официального DGM.
-
-### Ограничения
-
-- provider зависит от стороннего prototype service;
-- данные представлены в `EPSG:3857`;
-- elevation округлена до целых метров;
-- local cache ещё не реализован;
-- перед slope/aspect необходимо корректно учитывать масштаб Web Mercator;
-- для production integration operational source должен быть повторно оценён.
-
-### Validation
-
-На четырёх контрольных точках против NÖ Atlas получены абсолютные ошибки:
+В публичной карте должна присутствовать корректная атрибуция basemap.at, например:
 
 ```text
-2.10 m
-0.10 m
-0.80 m
-2.80 m
+Grundkarte: basemap.at
 ```
 
-Для sample:
+с ссылкой на `https://basemap.at/`.
 
-```text
-maximum absolute error: 2.80 m
-mean absolute error: 1.45 m
-RMSE: approximately 1.80 m
-```
+### Ограничения и implementation note
 
-Для MR02 PoC принят консервативный acceptance criterion:
+На момент принятия ADR basemap.at находится в переходе к новой vector-tile инфраструктуре. Существующие raster/legacy products доступны, а новая vector basemap анонсирована как основной будущий формат.
 
-```text
-absolute elevation error <= 5 m
-on the selected validation sample
-```
+Поэтому ADR фиксирует **поставщика и архитектурную роль**, но не фиксирует конкретный production endpoint.
+
+Перед реализацией MR-6 необходимо повторно проверить:
+
+- актуальный production endpoint;
+- рекомендуемый MapLibre integration path;
+- статус vector tiles;
+- attribution requirements;
+- условия доступности и технические ограничения сервиса.
 
 ### Следствие
 
-Native raster stack не является обязательной runtime dependency текущего MR02 PoC.
-
-Архитектура остаётся заменяемой:
-
 ```text
-authoritative DGM
-        ↓
-ElevationProvider contract
-        ↓
-AustrianElevationProvider   ← current MR02 PoC
-OfficialCogProvider         ← future option
-LocalGeoTiffProvider        ← future validation / offline option
-        ↓
-ElevationWindow
-        ↓
-terrain feature extraction
+basemap.at
+    ↓
+presentation basemap
+    ↓
+MapLibre GL JS
+    ↑
+mushroom-racing analytical overlays
+    ↑
+validated analytical providers
 ```
 
-Следующий блок MR02 — расчёт elevation / slope / aspect с явным учётом физического горизонтального шага.
+Scoring core не зависит от basemap.at и остаётся работоспособным без frontend-карты.
 

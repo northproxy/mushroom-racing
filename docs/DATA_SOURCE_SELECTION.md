@@ -269,7 +269,7 @@ elevation validation: completed on 4-point sample
 terrain feature extraction: implemented
 slope/aspect extraction: unit validated + live smoke tested
 independent authoritative slope/aspect validation: not yet performed
-local cache: planned
+local cache: implemented and live validated
 ```
 
 Elevation provider проверен против `NÖ Atlas → Koordinaten / Höhe → Gelände` на четырёх контрольных точках. Максимальная absolute error в этой небольшой validation sample составила `2.80 m`; принятый критерий MR02 PoC — `<= 5 m` на выбранной sample.
@@ -309,7 +309,11 @@ docs/data_sources/DEM.md
 
 ### Решение
 
-Полный GeoTIFF не является обязательной runtime dependency проекта. Обычный pipeline использует небольшие remote windows через `ElevationProvider`; local cache является следующим техническим блоком MR02.
+Полный GeoTIFF не является обязательной runtime dependency проекта. Обычный pipeline использует небольшие remote windows через `ElevationProvider` и persistent local cache через `CachedElevationProvider`.
+
+Cache хранит нормализованные `ElevationWindow` в `.npz`, использует явный namespace для invalidation и атомарную запись через temporary file + `os.replace`. Повреждённый cache обрабатывается fail-fast.
+
+MR-2.4 проверен unit tests и live persistent-cache smoke test: окно, записанное первым процессом через реальный remote provider, успешно прочитано вторым процессом без вызова wrapped remote provider.
 
 ---
 
@@ -557,7 +561,7 @@ field_observation
 | Tree species | BFW | candidate |
 | Forest soil | BFW | candidate |
 | Geology | GeoSphere Austria 1:50k GIS | selected |
-| DEM | Land Niederösterreich DGM 10 m / Geoland.at | authoritative selected; operational PoC validated |
+| DEM | Land Niederösterreich DGM 10 m / Geoland.at | authoritative selected; provider + terrain + persistent cache PoC validated |
 | Weather history | GeoSphere Data Hub | selected |
 | Current weather | GeoSphere INCA / station data | selected for PoC |
 | Drought | GeoSphere-derived / own documented proxy | research required |
@@ -566,6 +570,76 @@ field_observation
 | Hydrology | official OGD/GIS | research required |
 | Roads/trails | official data + OSM fallback | later |
 | Observations | mushroom-racing database | planned |
+| Presentation basemap | basemap.at | selected for MR-6 |
+
+---
+
+# 14A. Presentation basemap
+
+## Выбранный источник — basemap.at
+
+Для пользовательской web-карты выбран **basemap.at** как default presentation basemap.
+
+Роль этого источника принципиально отделена от analytical data sources:
+
+```text
+authoritative analytical sources
+        ↓
+feature extraction / scoring
+        ↓
+mushroom-racing overlays
+        ↓
+MapLibre GL JS
+        ↓
+basemap.at as presentation background
+```
+
+### Почему выбран basemap.at
+
+- официальный австрийский картографический продукт;
+- покрытие всей территории Австрии;
+- free-first совместимость;
+- лицензия CC BY 4.0;
+- подходит для отображения собственных GIS overlays;
+- позволяет не создавать и не обслуживать собственную базовую карту.
+
+### Ограничение роли
+
+Данные basemap.at не используются для вычисления:
+
+- habitat score;
+- current conditions score;
+- opportunity score;
+- legal eligibility;
+- confidence.
+
+Если визуально доступный объект basemap.at нужен как analytical feature, для него отдельно выбирается и валидируется соответствующий primary source.
+
+### Attribution
+
+Публичный frontend обязан отображать корректную атрибуцию basemap.at, например:
+
+```text
+Grundkarte: basemap.at
+```
+
+с ссылкой на `https://basemap.at/`.
+
+### Access strategy
+
+На момент фиксации решения basemap.at находится в переходе к новой vector-tile инфраструктуре. Поэтому:
+
+- `basemap.at` фиксируется как выбранный presentation provider;
+- конкретный endpoint не фиксируется до MR-6;
+- перед frontend integration повторно проверяются production status, MapLibre integration path, license/attribution и технические ограничения;
+- scoring/backend не должны зависеть от доступности basemap service.
+
+### Статус
+
+```text
+selected for presentation
+integration: deferred to MR-6
+```
 
 ---
 
@@ -573,7 +647,7 @@ field_observation
 
 ## P0 — подтвердить до первого GIS prototype
 
-1. DEM access + terrain feature PoC — **completed through MR-2.3; local cache remains**.
+1. DEM access + terrain feature + persistent cache PoC — **completed through MR-2.4**.
 2. GeoSphere geology query/download.
 3. GeoSphere weather API.
 4. Forest-mask source BFW.
@@ -627,29 +701,42 @@ known_limitations:
 
 # 17. Следующий конкретный шаг
 
-DEM operational access, elevation validation и terrain feature extraction завершены для текущего MR02 PoC.
+DEM operational access, elevation validation, terrain feature extraction и persistent local cache завершены для текущего MR02 PoC.
 
-Следующий технический блок:
+Завершённая DEM-цепочка:
 
 ```text
-MR-2.4 — local elevation cache
-
-remote provider
+WGS84 coordinate
         ↓
-cache wrapper
+AustrianElevationProvider
         ↓
-ElevationProvider contract
+CachedElevationProvider
         ↓
 ElevationWindow
         ↓
-terrain feature extraction
+TerrainFeatures
+    elevation / slope / aspect
 ```
 
-После завершения cache-блока продолжаем оставшиеся P0-источники:
+Проверки:
 
 ```text
-1. GeoSphere geology
-2. GeoSphere weather
-3. BFW forest mask
-4. protected areas
+elevation validation: 4 control points against NÖ Atlas
+terrain extraction: synthetic DEM unit tests + live smoke test
+persistent cache: cross-process live cache hit
+full repository suite: 84 passed
+```
+
+Следующий P0-блок:
+
+```text
+GeoSphere geology query / download PoC
+```
+
+После geology:
+
+```text
+1. GeoSphere weather
+2. BFW forest mask
+3. protected areas
 ```

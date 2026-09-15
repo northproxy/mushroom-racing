@@ -29,13 +29,14 @@ DATA_SOURCE_SELECTION.md
 | Forest soil | BFW Bodenkarte Niederösterreich | soil type, pH proxies, humus, moisture context | candidate / research |
 | General soil | eBOD / bodenkarte.at | soil properties where applicable | secondary / caution |
 | Geology | GeoSphere Austria 1:50k GIS | bedrock, carbonate/silicate proxy | selected primary source |
-| DEM | Land NÖ DGM 10 m; Geoland.at nationwide fallback | elevation, slope, aspect | authoritative source selected; operational access validation pending |
+| DEM | Land NÖ DGM 10 m; Geoland.at nationwide fallback | elevation, slope, aspect | authoritative selected; provider + terrain + persistent cache PoC validated |
 | Hydrology | official/open GIS source TBD | streams, springs, drainage | research required |
 | Weather | GeoSphere Austria Data Hub | rain, temperature, humidity, wind | selected primary source; PoC pending |
 | Drought | GeoSphere-derived / documented project proxy | anomalies, deficit | research required |
 | Protected areas | official Austrian GIS + Biosphärenpark Wienerwald | zone geometry, rules linkage | candidate / research |
 | Roads/trails | official data + OSM fallback | access, trail, parking context | later research |
 | User observations | mushroom-racing application data | positive + negative searches | planned |
+| Presentation basemap | basemap.at | cartographic background only | selected; integration deferred to MR-6 |
 
 ## Важное ограничение: eBOD
 
@@ -66,6 +67,24 @@ elevation / slope / aspect
 ```
 
 Operational provider должен валидироваться против authoritative DGM.
+
+## Presentation basemap: зафиксированное решение
+
+Для web-карты default presentation basemap — **basemap.at**.
+
+Она используется только как визуальная картографическая подложка:
+
+```text
+basemap.at
+    ↓
+MapLibre GL JS
+    ↑
+mushroom-racing analytical overlays
+```
+
+`basemap.at` **не является analytical source для scoring**. Elevation, geology, forest, weather, protected-area и legal features продолжают поступать из отдельно выбранных источников.
+
+Лицензия: CC BY 4.0 с обязательной атрибуцией. Конкретный production endpoint будет повторно проверен перед MR-6 из-за перехода basemap.at к новой vector-tile инфраструктуре.
 
 ## Data-source metadata schema
 

@@ -2,8 +2,8 @@
 
 ## Статус документа
 
-**Версия:** 0.1  
-**Дата:** 2026-09-14  
+**Версия:** 0.2  
+**Дата:** 2026-09-15  
 **Статус:** accepted baseline  
 
 ## Назначение
@@ -172,6 +172,28 @@ MapLibre предпочтителен для:
 - score overlays;
 - protected-area layers;
 - интерактивных карточек участков.
+
+### Presentation basemap
+
+Default presentation basemap для web MVP — **basemap.at**.
+
+Архитектурное разделение:
+
+```text
+basemap.at
+    ↓
+presentation only
+    ↓
+MapLibre GL JS
+    ↑
+mushroom-racing analytical overlays
+```
+
+`basemap.at` не используется как источник признаков scoring model. DEM, geology, forest, weather и legal layers поступают через собственные validated providers.
+
+Конкретный production endpoint basemap.at не фиксируется в stack заранее: перед MR-6 необходимо проверить актуальный production interface, поскольку basemap.at находится в переходе к новой vector-tile инфраструктуре.
+
+Mapbox и Google Maps не являются обязательными зависимостями проекта.
 
 Frontend остаётся отдельным слоем и не содержит scoring logic.
 

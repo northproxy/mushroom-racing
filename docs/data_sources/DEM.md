@@ -113,7 +113,7 @@ Provider **не считается authoritative source**.
 - данные преобразованы в `EPSG:3857`;
 - значения высоты округлены до целых метров;
 - HTTP availability внешнего сервиса не контролируется проектом;
-- local cache пока не реализован;
+- local cache реализован отдельным provider-wrapper и не меняет upstream source semantics;
 - результаты должны периодически сверяться с authoritative DGM.
 
 ---
@@ -284,28 +284,16 @@ Slope/aspect подтверждены unit tests и live smoke test, но **ещ
 
 ---
 
-# 9. Текущий статус
+# 9. Persistent local cache — MR-2.4
 
-```text
-authoritative DEM source: selected
-operational provider: AustrianElevationProvider — validated for MR02 PoC
-elevation validation: completed on 4-point sample
-terrain feature extraction: implemented
-slope/aspect extraction: unit validated + live smoke tested
-independent authoritative slope/aspect validation: not yet performed
-local cache: planned
-```
+Local cache реализован как отдельный `CachedElevationProvider`, который оборачивает любой объект, совместимый с `ElevationProvider`.
 
----
-
-# 10. Следующий шаг
-
-MR-2.4 — local elevation cache:
+Архитектура:
 
 ```text
 remote provider
         ↓
-cache wrapper
+CachedElevationProvider
         ↓
 ElevationProvider contract
         ↓
@@ -314,4 +302,138 @@ ElevationWindow
 terrain feature extraction
 ```
 
-Cache должен быть прозрачным для feature extraction и не менять `ElevationProvider` contract.
+Cache хранит **нормализованный `ElevationWindow`**, а не provider-specific HTTP payload. Благодаря этому feature extraction не зависит от способа доставки DEM.
+
+## Cache key
+
+Ключ строится из:
+
+```text
+cache format version
+cache namespace
+latitude
+longitude
+radius_m
+```
+
+Python-класс wrapped provider намеренно не входит в cache key.
+
+Идентичность и версия источника задаются явно через namespace, например:
+
+```text
+austrian-elevation-v1
+```
+
+При несовместимой смене source/grid/normalization semantics namespace должен быть изменён, что обеспечивает явную invalidation старого cache.
+
+## Storage format
+
+Cache entries сохраняются как compressed NumPy `.npz`.
+
+Основные свойства:
+
+- `np.load(..., allow_pickle=False)`;
+- сохраняются `values`, `bounds`, `crs`, `nodata`;
+- записывается cache format version и namespace;
+- reconstructed object снова проходит validation `ElevationWindow`;
+- corrupted или несовместимый cache обрабатывается fail-fast.
+
+Запись выполняется атомарно:
+
+```text
+temporary file
+      ↓
+complete npz write
+      ↓
+os.replace(...)
+      ↓
+final cache entry
+```
+
+Это снижает риск появления частично записанного cache entry.
+
+## MR-2.4 tests
+
+Unit tests покрывают:
+
+- cache miss вызывает wrapped provider;
+- повторный identical request даёт cache hit;
+- cache сохраняется между разными provider instances;
+- другой `radius_m` создаёт другой entry;
+- другой namespace не переиспользует entry;
+- loaded `ElevationWindow.values` остаётся read-only;
+- corrupted cache fail-fast;
+- invalid request parameters fail-fast;
+- пустой namespace запрещён.
+
+После MR-2.4 полный repository suite:
+
+```text
+84 passed in 0.21s
+```
+
+## Live persistent-cache validation
+
+Контрольная точка:
+
+```text
+47.7200, 15.9000
+radius_m = 20.0
+```
+
+Первый процесс получил окно через реальный `AustrianElevationProvider` и записал cache entry.
+
+Второй отдельный процесс использовал wrapped provider, который намеренно выбрасывал исключение при любом вызове remote path. Запрос успешно завершился через cache:
+
+```text
+TerrainFeatures(
+    elevation_m=1212.0,
+    slope_deg=13.225887604858007,
+    aspect_deg=341.565051177078,
+)
+
+persistent cache hit: OK
+```
+
+Это подтверждает persistent cache hit между процессами и отсутствие вызова remote provider на cache hit.
+
+
+---
+
+# 10. Текущий статус
+
+```text
+authoritative DEM source: selected
+operational provider: AustrianElevationProvider — validated for MR02 PoC
+elevation validation: completed on 4-point sample
+terrain feature extraction: implemented
+slope/aspect extraction: unit validated + live smoke tested
+independent authoritative slope/aspect validation: not yet performed
+local cache: implemented + unit validated + cross-process live validated
+```
+
+---
+
+# 11. Следующий шаг
+
+DEM pipeline для текущего MR02 PoC завершён:
+
+```text
+authoritative source selection
+        ↓
+operational remote provider
+        ↓
+elevation validation
+        ↓
+terrain feature extraction
+        ↓
+persistent local cache
+```
+
+Следующий P0 data-source block:
+
+```text
+GeoSphere geology query / download PoC
+```
+
+Дальнейшие улучшения DEM — например tile-aware cache, authoritative slope/aspect comparison или официальный COG/WCS access — выполняются только при появлении отдельной потребности и не блокируют следующий MR02 source layer.
