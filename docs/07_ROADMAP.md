@@ -337,6 +337,8 @@ Legal automation остаётся вне текущего MR-3 scope и верн
 
 ## MR-4 --- Weather context extension
 
+Status: deferred
+
 Базовый daily weather pipeline уже реализован в MR-2.
 
 В MR-4 остаются дополнительные weather-context задачи, если они будут
