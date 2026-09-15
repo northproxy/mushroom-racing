@@ -432,73 +432,234 @@ MR-2.4 проверен unit tests и live persistent-cache smoke test: окно
 
 # 7. Погода
 
-## Выбранный основной источник --- GeoSphere Austria Data Hub
+## Выбранный основной источник --- GeoSphere Austria SPARTACUS v3
 
-GeoSphere Austria предоставляет Dataset API с режимами:
+**Provider:** GeoSphere Austria  
+**Dataset:** `spartacus-v3-1d-1km`  
+**Тип:** gridded daily climate data  
+**Spatial resolution:** примерно 1 km  
+**Temporal resolution:** 1 day  
+**Access:** GeoSphere Dataset API, `timeseries/historical` point-query  
+**License:** CC BY 4.0
 
--   historical;
--   current;
--   forecast.
+### Использование
 
-Поддерживаются:
+Текущий production weather pipeline использует SPARTACUS v3 для:
 
--   station data;
--   grid data;
--   timeseries по координате.
+-   daily precipitation;
+-   daily mean temperature;
+-   daily minimum temperature;
+-   daily maximum temperature;
+-   rolling rainfall history;
+-   rolling mean-temperature windows;
+-   построения domain `WeatherSnapshot`.
 
-Публично доступные без аутентификации данные Data Hub лицензируются как:
+Проверенные source parameters:
 
 ``` text
-CC BY 4.0
+RR    daily precipitation sum       kg m-2
+TM24  daily mean air temperature    degC
+TN    daily minimum air temperature degC
+TX    daily maximum air temperature degC
 ```
 
-### Основные наборы для исследования
-
-#### Station Data v2
-
-Подходит для:
-
--   precipitation;
--   temperature;
--   humidity;
--   wind;
--   исторических проверок и сравнения с grid data.
-
-#### INCA
-
-Высокодетализированная метеорологическая analysis/nowcasting система.
-
-Потенциально подходит для текущего состояния конкретной территории
-лучше, чем одна метеостанция.
-
-#### SPARTACUS daily
-
-Gridded daily climate data примерно 1 km.
-
-Подходит для:
-
--   исторических осадков;
--   температуры;
--   rainfall history;
--   климатического контекста.
+Для воды `1 kg m-2` численно эквивалентен `1 mm`, поэтому provider
+нормализует `RR` в `precipitation_mm` без изменения численного значения.
 
 ### Статус
 
 ``` text
 selected primary source
+MR-2 weather PoC: completed
+production provider: AustrianWeatherProvider
+weather feature extraction: implemented
+WeatherSnapshot assembly: implemented
 ```
 
-### Предварительное решение по pipeline
-
-Для MR03 исследовать комбинацию:
+### Проверенный operational path
 
 ``` text
-historical context -> SPARTACUS / quality-checked station data
-current conditions -> INCA / current station data
+WGS84 coordinate
+        ↓
+AustrianWeatherProvider
+        ↓
+GeoSphere SPARTACUS v3 timeseries API
+        ↓
+WeatherSeries / DailyWeather
+        ↓
+weather feature extraction
+        ↓
+WeatherSnapshot
 ```
 
-Окончательный выбор dataset/resource_id фиксируется только после proof
-of concept.
+Provider сохраняет отдельно:
+
+``` text
+requested coordinate
+source grid coordinate
+```
+
+поскольку GeoSphere возвращает ближайшую grid-point, которая может
+немного отличаться от запрошенной координаты.
+
+### Missing-data semantics
+
+Live PoC подтвердил важное поведение API:
+
+``` text
+HTTP 200
+```
+
+не гарантирует наличие weather data.
+
+Для точки вне эффективного покрытия API может вернуть одну grid-point,
+но все значения параметров будут:
+
+``` json
+null
+```
+
+Поэтому:
+
+``` text
+0.0  !=  None
+```
+
+`0.0` означает известное нулевое значение, например отсутствие осадков.
+
+`None` означает, что данных нет.
+
+`WeatherAvailability` различает:
+
+``` text
+AVAILABLE
+PARTIAL
+NO_DATA
+```
+
+Полностью пустой, но структурно корректный ответ не является transport
+error и нормализуется как `NO_DATA`.
+
+### Fail-fast
+
+`WeatherProviderError` используется для operational/source contract
+errors, например:
+
+-   network / timeout;
+-   HTTP error;
+-   malformed JSON;
+-   неожиданная структура payload;
+-   отсутствующий обязательный parameter;
+-   несоответствие длины timestamps и parameter arrays;
+-   неожиданная unit;
+-   невозможная source geometry;
+-   non-numeric / non-finite values.
+
+Missing weather value (`null`) сам по себе ошибкой не является.
+
+### Rolling features
+
+Реализованы deterministic calendar windows:
+
+``` text
+rain_24h_mm
+rain_3d_mm
+rain_7d_mm
+rain_14d_mm
+rain_21d_mm
+rain_28d_mm
+
+avg_temp_7d_c
+avg_temp_14d_c
+avg_temp_20d_c
+```
+
+Окна inclusive по `as_of_date`.
+
+Пример:
+
+``` text
+7d = as_of_date + 6 предыдущих календарных дней
+```
+
+Используется strict completeness policy:
+
+-   отсутствующий календарный день делает соответствующий derived feature
+    `None`;
+-   `None` внутри precipitation window делает только rainfall feature
+    `None`;
+-   `None` внутри mean-temperature window делает только temperature
+    feature `None`;
+-   известный `0.0` участвует в расчёте как нормальное значение.
+
+### Live validation
+
+Основная контрольная точка:
+
+``` text
+47.7200, 15.9000
+```
+
+GeoSphere source grid:
+
+``` text
+47.718814849853516, 15.900300979614258
+```
+
+Проверены:
+
+-   mountain control point --- valid data;
+-   Vienna control point --- valid data;
+-   Munich outside-effective-coverage case --- HTTP 200 + all `null`;
+-   historical January 1961 --- valid historical data without missing values.
+
+End-to-end smoke для `2026-09-12`:
+
+``` text
+rain_24h_mm   ≈ 0.1
+rain_3d_mm    ≈ 28.3
+rain_7d_mm    ≈ 34.5
+rain_14d_mm   ≈ 53.9
+rain_21d_mm   ≈ 58.0
+rain_28d_mm   ≈ 95.9
+
+avg_temp_7d_c  ≈ 14.04
+avg_temp_14d_c ≈ 15.20
+avg_temp_20d_c ≈ 15.68
+```
+
+Полный repository test suite после weather pipeline:
+
+``` text
+188 passed in 0.35s
+```
+
+### Ограничения
+
+SPARTACUS v3 сейчас используется как основной daily weather history
+source.
+
+Пока не реализованы:
+
+-   `rain_90d_mm`;
+-   rainfall anomaly;
+-   humidity;
+-   wind;
+-   soil moisture;
+-   drought index;
+-   INCA/current-hourly integration.
+
+Эти поля остаются `None`, а не заменяются искусственными значениями.
+
+Последние дни SPARTACUS могут пересчитываться GeoSphere после
+quality-control исходных station observations, поэтому недавние данные
+не следует считать immutable.
+
+Подробности:
+
+``` text
+docs/data_sources/WEATHER.md
+```
 
 ------------------------------------------------------------------------
 
@@ -703,9 +864,12 @@ field_observation
                                                   persistent cache PoC
                                                   validated
 
-  Weather history         GeoSphere Data Hub      selected
+  Weather history         GeoSphere SPARTACUS v3  selected; provider +
+                          daily 1 km grid         rolling features +
+                                                  WeatherSnapshot
+                                                  validated
 
-  Current weather         GeoSphere INCA /        selected for PoC
+  Current weather         GeoSphere INCA /        later research
                           station data            
 
   Drought                 GeoSphere-derived / own research required
@@ -814,8 +978,10 @@ integration: deferred to MR-6
     through MR-2.4**.
 2.  GeoSphere geology point-query PoC --- **completed through MR-2.5**.
 3.  BFW forest-mask source PoC --- **completed through MR-2.6**.
-4.  Protected-area geometry + licensing.
-5.  GeoSphere weather API.
+4.  GeoSphere SPARTACUS weather API + provider + rolling features ---
+    **completed**.
+5.  Protected-area geometry + licensing --- **deferred until the core
+    application workflow is operational**.
 
 ## P1 --- подтвердить до meaningful Steinpilz scoring
 
@@ -865,68 +1031,59 @@ known_limitations:
 
 ------------------------------------------------------------------------
 
-# 17. Следующий конкретный шаг
+# 17. Текущее состояние MR-2 и следующий шаг
 
-DEM operational access, elevation validation, terrain feature extraction
-и persistent local cache завершены для текущего MR02 PoC.
+Для текущего MR-2 завершены operational PoC для:
 
-Завершённая DEM-цепочка:
+``` text
+DEM / terrain
+geology
+forest mask
+weather
+```
+
+Weather pipeline:
 
 ``` text
 WGS84 coordinate
         ↓
-AustrianElevationProvider
+AustrianWeatherProvider
         ↓
-CachedElevationProvider
+GeoSphere SPARTACUS v3
         ↓
-ElevationWindow
+WeatherSeries / DailyWeather
         ↓
-TerrainFeatures
-    elevation / slope / aspect
+WeatherFeatures
+        ↓
+WeatherSnapshot
 ```
 
-Проверки:
+Проверки weather block:
 
 ``` text
-elevation validation: 4 control points against NÖ Atlas
-terrain extraction: synthetic DEM unit tests + live smoke test
-persistent cache: cross-process live cache hit
-full repository suite: 84 passed
+live source access: PASS
+multiple Austrian grid cells: PASS
+outside-effective-coverage null semantics: PASS
+historical 1961 data: PASS
+rolling feature extraction: PASS
+WeatherSnapshot assembly: PASS
+full repository suite: 188 passed in 0.35s
+end-to-end live smoke: PASS
 ```
 
-Geology operational access завершён для текущего MR02 PoC.
+Protected-area geometry + automated legal-rule resolution сознательно
+отложены.
 
-Проверки:
+До возвращения к legal automation действует правило:
 
 ``` text
-validation sample: 7 ordinary control points
-spatial edge cases: 0 / 1 / 3 intersecting features
-geology slice: 27 passed
-full repository suite: 111 passed
-production live smoke: Gutenstein Formation / limestone
+legal status = unknown unless manually confirmed
 ```
 
-Forest-mask operational access завершён для текущего MR02 PoC.
+Protected-area membership не становится hard filter автоматически.
 
-Проверки:
-
-``` text
-positive control: 47.7200000, 15.9000000 -> FOREST
-negative lake control: 47.8520556, 16.7713333 -> NON_FOREST
-query semantics: WFS 2.0 FES Intersects with gml:Point
-forest slice: 27 passed
-full repository suite: 146 passed
-production live smoke: FOREST / NON_FOREST
-```
-
-Следующий P0-блок:
+Следующий инженерный этап:
 
 ``` text
-protected-area geometry + licensing PoC
-```
-
-После protected areas:
-
-``` text
-GeoSphere weather
+MR-3 — geospatial feature extraction / unified feature assembly
 ```

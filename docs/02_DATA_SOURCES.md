@@ -67,9 +67,12 @@ DATA_SOURCE_SELECTION.md
                   source TBD              springs,         required
                                           drainage         
 
-  Weather         GeoSphere Austria Data  rain,            selected
-                  Hub                     temperature,     primary source;
-                                          humidity, wind   PoC pending
+  Weather         GeoSphere SPARTACUS v3 rain,            selected
+                  daily 1 km grid         temperature      primary source;
+                                                           provider +
+                                                           rolling features +
+                                                           WeatherSnapshot
+                                                           validated
 
   Drought         GeoSphere-derived /     anomalies,       research
                   documented project      deficit          required
@@ -196,6 +199,95 @@ Waldkarte не является legal/access layer.
 docs/data_sources/FOREST.md
 ```
 
+## Weather: зафиксированное решение
+
+Для daily weather history выбран официальный **GeoSphere Austria
+SPARTACUS v3** dataset:
+
+``` text
+spartacus-v3-1d-1km
+```
+
+Operational pipeline:
+
+``` text
+WGS84 coordinate
+        ↓
+AustrianWeatherProvider
+        ↓
+GeoSphere timeseries/historical API
+        ↓
+WeatherSeries / DailyWeather
+        ↓
+WeatherFeatures
+        ↓
+WeatherSnapshot
+```
+
+Проверенные parameters:
+
+``` text
+RR
+TM24
+TN
+TX
+```
+
+`RR` приходит как `kg m-2` и нормализуется в `mm`; temperature parameters
+приходят в `degC`.
+
+Критическая source semantics:
+
+``` text
+HTTP 200 + all null
+```
+
+означает `NO_DATA`, а не нулевую погоду и не transport failure.
+
+`0.0` сохраняется как известный ноль, `null` — как `None`.
+
+Реализованы:
+
+``` text
+rain_24h_mm
+rain_3d_mm
+rain_7d_mm
+rain_14d_mm
+rain_21d_mm
+rain_28d_mm
+
+avg_temp_7d_c
+avg_temp_14d_c
+avg_temp_20d_c
+```
+
+Неполное календарное окно возвращает `None`.
+
+End-to-end live smoke на `47.7200, 15.9000` успешно построил
+`WeatherSnapshot` через production provider.
+
+После завершения блока:
+
+``` text
+full repository suite: 188 passed in 0.35s
+```
+
+Пока не реализованы:
+
+-   rain 90d;
+-   rainfall anomaly;
+-   humidity;
+-   wind;
+-   soil moisture;
+-   drought index;
+-   hourly/current INCA integration.
+
+Подробности:
+
+``` text
+docs/data_sources/WEATHER.md
+```
+
 ## Presentation basemap: зафиксированное решение
 
 Для web-карты default presentation basemap --- **basemap.at**.
@@ -246,8 +338,9 @@ known_limitations:
     completed through MR-2.4;
 -   geology point-query --- completed through MR-2.5;
 -   forest mask --- completed through MR-2.6;
--   protected-area geometry + licensing;
--   weather API PoC.
+-   weather API + provider + rolling features + WeatherSnapshot ---
+    completed;
+-   protected-area geometry + licensing --- deferred.
 
 ### P1 --- до meaningful Steinpilz scoring
 
@@ -272,5 +365,5 @@ known_limitations:
 -   доступна ли soil moisture с полезным spatial resolution;
 -   как надёжно связывать protected-area geometry с конкретными legal
     rules;
--   какие конкретные GeoSphere resources использовать для
-    historical/current weather pipeline.
+-   нужен ли отдельный current/hourly weather source (например INCA) до
+    MR-5 или достаточно daily SPARTACUS для первой scoring версии.

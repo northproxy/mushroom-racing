@@ -29,6 +29,7 @@ data/processed/*
 .cache/
 
 /tmp
+project-tree.bat
 
 # Notebook noise
 .ipynb_checkpoints/

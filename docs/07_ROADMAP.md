@@ -61,7 +61,7 @@ integration regressions с baseline scoring и остальным кодом.
 
 ## MR-2 --- Austrian data-source proof of concept
 
-**Статус:** in progress
+**Статус:** completed for current scope ✅
 
 ### DEM / terrain block ✅
 
@@ -155,23 +155,105 @@ full repository suite: 146 passed
 docs/data_sources/FOREST.md
 ```
 
-### Осталось в MR-2
+### Weather block ✅
 
--   один protected-area layer;
--   документированные лицензии для оставшихся выбранных источников.
+Завершены:
 
-Следующий блок:
+-   выбран официальный GeoSphere Austria `SPARTACUS v3`
+    (`spartacus-v3-1d-1km`) как primary daily weather source;
+-   реализованы `WeatherProvider`, `WeatherSeries`, `DailyWeather`,
+    `WeatherAvailability`, `WeatherProviderError`;
+-   реализован live `AustrianWeatherProvider`;
+-   подтверждён WGS84 `timeseries/historical` point-query;
+-   подтверждены parameters `RR`, `TM24`, `TN`, `TX`;
+-   `RR` нормализуется из `kg m-2` в численно эквивалентные `mm`;
+-   `null` сохраняется как `None`; `0.0` остаётся известным нулём;
+-   подтверждён edge case `HTTP 200 + all null` вне эффективного
+    покрытия;
+-   реализованы strict rolling rainfall windows 1/3/7/14/21/28 days;
+-   реализованы mean-temperature windows 7/14/20 days;
+-   отсутствующий день или `None` внутри окна не подменяются нулём;
+-   реализован assembly `WeatherSeries -> WeatherFeatures ->
+    WeatherSnapshot`;
+-   live end-to-end smoke подтверждён на `47.7200, 15.9000`;
+-   historical data проверены на январе 1961.
+
+Проверка после weather block:
 
 ``` text
-protected-area geometry + licensing PoC
+full repository suite: 188 passed in 0.35s
+production live provider smoke: PASS
+end-to-end WeatherSnapshot smoke: PASS
 ```
 
-Definition of Done MR-2:
+Weather pipeline:
 
--   repeatable import/query workflow для выбранных P0 layers;
--   sample output сохраняется там, где это разрешает лицензия;
--   source / license / access limitations документированы;
--   operational data path проверен воспроизводимо.
+``` text
+GeoSphere SPARTACUS v3
+        ↓
+AustrianWeatherProvider
+        ↓
+WeatherSeries / DailyWeather
+        ↓
+WeatherFeatures
+        ↓
+WeatherSnapshot
+```
+
+Пока остаются `None` и не считаются реализованными:
+
+``` text
+rain_90d
+rain anomaly
+humidity
+wind
+soil moisture
+drought index
+```
+
+Подробности:
+
+``` text
+docs/data_sources/WEATHER.md
+```
+### MR-2.7 — protected-area geometry + licensing PoC
+
+Status: deferred
+
+Protected-area geometry and automated legal-rule resolution are postponed
+until the core application workflow is operational.
+
+For the current MVP development stage:
+- legal status is not inferred automatically;
+- collecting_allowed remains unknown unless explicitly confirmed;
+- protected-area membership is not used as a hard filter;
+- the user performs the legal/collection-permission check manually.
+
+Automated legal hard exclusions will be introduced only after
+authoritative geometry and the corresponding legal rule are both verified.
+
+### Definition of Done MR-2 ✅
+
+Для текущего scope MR-2 завершены и воспроизводимо проверены:
+
+-   DEM / terrain;
+-   geology;
+-   forest mask;
+-   weather.
+
+Protected-area geometry + licensing сознательно исключены из текущего
+Definition of Done и перенесены на более поздний этап.
+
+Текущий repository-level validation:
+
+``` text
+188 passed in 0.35s
+```
+
+Operational data paths для выбранных текущих P0 layers подтверждены
+live smoke tests и документированы.
+
+
 
 ## MR-3 --- Geospatial feature extraction
 
@@ -180,7 +262,8 @@ Definition of Done MR-2:
 -   интеграция уже реализованных elevation / slope / aspect;
 -   forest mask;
 -   geology class;
--   legal eligibility;
+-   weather features / WeatherSnapshot integration;
+-   legal status остаётся `unknown`, пока manual check не подтверждён;
 -   единый geospatial feature assembly для scoring.
 
 Проверка:
@@ -188,18 +271,25 @@ Definition of Done MR-2:
 -   известные test coordinates / fixtures;
 -   expected feature assertions.
 
-## MR-4 --- Weather pipeline
+## MR-4 --- Weather context extension
 
-Результат:
+Базовый daily weather pipeline уже реализован в MR-2.
 
--   rainfall history;
--   rolling 3/7/14/21/28-day totals;
--   temperature windows;
--   drought/history context.
+В MR-4 остаются дополнительные weather-context задачи, если они будут
+нужны для первой scoring версии:
+
+-   90-day rainfall context;
+-   rainfall anomaly / deficit;
+-   формально определённый drought proxy или выбранный authoritative
+    drought source;
+-   при необходимости current/hourly layer (например INCA);
+-   humidity / wind только если они реально нужны scoring model.
 
 Проверка:
 
--   deterministic calculations from fixture data.
+-   deterministic calculations from fixture data;
+-   missing data не подменяются нулём;
+-   proxy не называется `soil_moisture`, если он им не является.
 
 ## MR-5 --- Steinpilz v0.1 scoring
 
