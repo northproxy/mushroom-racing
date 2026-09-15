@@ -446,3 +446,109 @@ Capabilities Organic Maps являются внешней зависимость
 - собственная turn-by-turn navigation.
 
 Полноценная собственная offline-навигация добавляется только при появлении отдельной подтверждённой необходимости.
+
+---
+
+## ADR-012 — Acquisition, assembly, interpretation и scoring разделены
+
+**Статус:** accepted
+
+### Решение
+
+Geospatial pipeline проекта разделяется на отдельные ответственности:
+
+```text
+external data sources
+        ↓
+provider acquisition
+        ↓
+normalized / derived source features
+        ↓
+GeospatialFeatureSet
+        ↓
+ecological interpretation
+        ↓
+scoring
+```
+
+`GeospatialFeatureSet` является assembly contract и не выполняет
+species-specific interpretation или scoring.
+
+Он сохраняет уже нормализованные результаты предыдущих слоёв, включая:
+
+- `TerrainFeatures`;
+- `ForestResult`;
+- `GeologyQueryResult`;
+- `WeatherSnapshot`;
+- текущий legal status (`collecting_allowed`).
+
+### Почему
+
+Разделение предотвращает смешивание:
+
+- source acquisition;
+- normalization;
+- domain interpretation;
+- scoring rules.
+
+Это особенно важно для geology: source-level `material` и
+`representative_lithology` не должны автоматически превращаться в
+`silicate/carbonate` classification внутри provider или assembly layer.
+
+Аналогично:
+
+- `ForestStatus.UNKNOWN` не превращается в `NON_FOREST`;
+- weather `None` не превращается в `0`;
+- `collecting_allowed=None` не превращается в разрешение или запрет;
+- наличие feature не означает автоматически положительный или
+  отрицательный ecological signal.
+
+### Следствие
+
+MR-3 отвечает только за получение единого непротиворечивого набора
+признаков.
+
+Species-specific interpretation и scoring выполняются отдельным слоем
+после `GeospatialFeatureSet`.
+
+Недопустимо добавлять в MR-3 contract без отдельного архитектурного
+решения такие поля, как:
+
+```text
+is_carbonate
+is_silicate
+geology_score
+terrain_score
+weather_score
+habitat_score
+current_conditions_score
+opportunity_score
+confidence
+eligible
+```
+
+Будущая архитектура:
+
+```text
+providers
+    ↓
+normalized source contracts
+    ↓
+GeospatialFeatureAssembler
+    ↓
+GeospatialFeatureSet
+    ↓
+species-specific interpretation
+    ↓
+explainable scoring
+```
+
+### Validation
+
+Решение подтверждено MR-3:
+
+```text
+full repository suite: 210 passed in 0.38s
+offline integration fixture: PASS
+live GeospatialFeatureSet smoke: PASS
+```

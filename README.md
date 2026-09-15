@@ -20,29 +20,34 @@
 
 ## Текущее состояние
 
-**Фаза: MR-1 — Domain model завершён; следующий этап — MR-2 data-source PoC**
+**Фаза: MR-3 — Geospatial feature extraction завершён; следующий этап — MR-4 weather context extension / подготовка MR-5 scoring**
 
 Сейчас реализованы:
 
 - структура проекта;
-- базовая knowledge model;
-- первый объяснимый прототип scoring;
 - стабильная domain model MR-1 (`SpeciesProfile`, `ForestSpot`, `WeatherSnapshot`, `Observation`);
 - явные evidence levels и правила представления отсутствующих данных;
-- JSON sample fixtures и тесты сериализации/валидации;
-- тесты;
+- production PoC для Austrian DEM / terrain, geology, forest mask и daily weather;
+- `AustrianElevationProvider`, `AustrianGeologyProvider`, `AustrianForestProvider`, `AustrianWeatherProvider`;
+- persistent local DEM cache;
+- terrain extraction: elevation / slope / aspect;
+- weather rolling features и `WeatherSnapshot`;
+- единый `GeospatialFeatureSet`;
+- provider-agnostic `GeospatialFeatureAssembler`;
+- offline integration fixture для unified feature assembly;
+- live end-to-end pipeline:
+  `coordinate → providers → normalized features → GeospatialFeatureSet`;
 - GitHub Actions workflow для запуска тестов;
-- документация MVP, источников данных, схемы и полевого протокола.
+- полный test suite: `210 passed in 0.38s`.
 
-Пока не реализованы:
+Текущие ограничения:
 
-- загрузка актуальной погоды;
-- production GIS/data-source adapters;
-- geospatial feature extraction pipeline;
-- интерфейс карты;
-- база данных;
-- mobile/web frontend;
-- ML-модель.
+- protected-area geometry и automated legal-rule resolution отложены;
+- `collecting_allowed` остаётся `None`, пока статус не подтверждён вручную;
+- tree-species и forest-soil layers ещё не интегрированы;
+- rain 90d / rainfall anomaly / drought context ещё не реализованы;
+- scoring Steinpilz v0.1 ещё не подключён к новому unified feature pipeline;
+- интерфейс карты, persistence observations и route generation ещё не реализованы.
 
 ## Основная идея
 
@@ -63,6 +68,23 @@ Calibration
         ↓
 Map + recommendations
 ```
+
+
+Текущий geospatial pipeline разделён на независимые ответственности:
+
+```text
+data acquisition
+        ↓
+normalized / derived source features
+        ↓
+GeospatialFeatureSet
+        ↓
+ecological interpretation
+        ↓
+scoring
+```
+
+MR-3 намеренно не выполняет species-specific interpretation и не вычисляет score.
 
 В перспективе приложение должно отвечать на вопросы вроде:
 

@@ -255,21 +255,85 @@ live smoke tests и документированы.
 
 
 
-## MR-3 --- Geospatial feature extraction
+## MR-3 --- Geospatial feature extraction ✅
+
+**Завершён:** 2026-09-15
 
 Результат:
 
--   интеграция уже реализованных elevation / slope / aspect;
--   forest mask;
--   geology class;
--   weather features / WeatherSnapshot integration;
--   legal status остаётся `unknown`, пока manual check не подтверждён;
--   единый geospatial feature assembly для scoring.
+-   добавлен immutable `GeospatialFeatureSet`;
+-   unified contract сохраняет существующие `TerrainFeatures`,
+    `ForestResult`, `GeologyQueryResult` и `WeatherSnapshot` без
+    повторного копирования полей;
+-   `FOREST / NON_FOREST / UNKNOWN` сохраняются без потери семантики;
+-   geology сохраняется как source-level `0..N` records без
+    silicate/carbonate interpretation;
+-   weather передаётся готовым `WeatherSnapshot`, включая `None` для
+    отсутствующих данных;
+-   `collecting_allowed` сохраняет трёхсоставную семантику
+    `True / False / None`;
+-   реализован provider-agnostic `GeospatialFeatureAssembler`;
+-   assembler зависит от `ElevationProvider`, `ForestProvider` и
+    `GeologyProvider`, а не от конкретных Austrian implementations;
+-   terrain extraction выполняется через существующий
+    `extract_terrain_features`;
+-   mismatched `WeatherSnapshot.spot_id` отбрасывается fail-fast до
+    внешних provider calls;
+-   добавлен offline integration fixture для известной контрольной точки;
+-   выполнен live end-to-end smoke через реальные Austrian providers.
+
+Архитектурный pipeline:
+
+``` text
+data acquisition
+        ↓
+normalized / derived source features
+        ↓
+GeospatialFeatureSet
+        ↓
+future ecological interpretation
+        ↓
+future scoring
+```
+
+MR-3 намеренно не выполняет:
+
+-   geological silicate/carbonate interpretation;
+-   species-specific habitat interpretation;
+-   legal eligibility calculation;
+-   confidence calculation;
+-   habitat/current/opportunity scoring.
 
 Проверка:
 
--   известные test coordinates / fixtures;
--   expected feature assertions.
+``` text
+full repository suite: 210 passed in 0.38s
+offline integration fixture: PASS
+live GeospatialFeatureSet smoke: PASS
+```
+
+Контрольная live coordinate:
+
+``` text
+47.7200, 15.9000
+```
+
+Подтверждённый live result:
+
+``` text
+elevation: 1212.0 m
+slope: 13.23°
+aspect: 341.565°
+forest: FOREST
+geology: Gutenstein Formation / limestone
+rain_14d_mm: ~53.9
+rain_28d_mm: ~95.9
+avg_temp_14d_c: ~15.20
+collecting_allowed: None
+```
+
+Legal automation остаётся вне текущего MR-3 scope и вернётся после
+подтверждения authoritative geometry + legal rule.
 
 ## MR-4 --- Weather context extension
 
