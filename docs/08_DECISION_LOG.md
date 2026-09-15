@@ -117,6 +117,19 @@ Authoritative elevation source — официальный Austrian Digital Eleva
 
 Operational provider принимается только после проверки на нескольких контрольных точках против authoritative DGM с зафиксированной допустимой погрешностью.
 
+Для MR02 `AustrianElevationProvider` проверен на четырёх точках против `NÖ Atlas → Gelände`.
+
+Результат validation sample:
+
+```text
+maximum absolute error: 2.80 m
+mean absolute error: 1.45 m
+RMSE: approximately 1.80 m
+MR02 PoC acceptance threshold: <= 5 m absolute error
+```
+
+Все четыре контрольные точки прошли критерий MR02 PoC. Этот критерий относится только к выбранной validation sample и не является гарантией точности provider-а по всей Австрии.
+
 ### Следствие
 
 ```text
@@ -226,3 +239,94 @@ known zero / false
 - provider adapters должны сохранять missingness, а не подставлять произвольные defaults;
 - feature extraction/scoring обязаны отдельно решать, как работать с `None`;
 - confidence может снижаться из-за отсутствующих данных, но отсутствие данных не должно тихо превращаться в отрицательный ecological signal.
+
+---
+
+## ADR-009 — Для MR02 operational DEM используется lightweight HTTP provider
+
+**Статус:** accepted
+
+### Решение
+
+Для MR02 PoC operational elevation access выполняется через `AustrianElevationProvider`, который получает небольшие 10-метровые raster rows по HTTP и возвращает нормализованный `ElevationWindow`.
+
+Authoritative source при этом не меняется:
+
+- Land Niederösterreich DGM 10 m — основной source of truth для стартовой зоны;
+- Geoland.at DGM Österreich 10 m — nationwide fallback.
+
+`AustrianElevationProvider` является transport/access layer и не считается authoritative dataset.
+
+### Почему
+
+Прямой HTTP Range access к официальному архиву Land Niederösterreich технически подтверждён: сервер отвечает `206 Partial Content` и поддерживает byte ranges.
+
+Для прямого чтения GeoTIFF был исследован Rasterio/GDAL, но на основной Windows development-машине действующая Code Integrity policy блокирует нативный модуль Rasterio (`_err.cp314-win_amd64.pyd`) из-за требований к уровню подписи.
+
+Проект не отключает и не ослабляет системную защиту ради GIS-библиотеки.
+
+Lightweight HTTP provider позволяет:
+
+- продолжить MR02 без полного GeoTIFF;
+- сохранить provider abstraction;
+- тестировать parsing и coordinate conversion без native GIS runtime;
+- получать небольшие окна вместо гигабайтного файла;
+- валидировать результат против официального DGM.
+
+### Ограничения
+
+- provider зависит от стороннего prototype service;
+- данные представлены в `EPSG:3857`;
+- elevation округлена до целых метров;
+- local cache ещё не реализован;
+- перед slope/aspect необходимо корректно учитывать масштаб Web Mercator;
+- для production integration operational source должен быть повторно оценён.
+
+### Validation
+
+На четырёх контрольных точках против NÖ Atlas получены абсолютные ошибки:
+
+```text
+2.10 m
+0.10 m
+0.80 m
+2.80 m
+```
+
+Для sample:
+
+```text
+maximum absolute error: 2.80 m
+mean absolute error: 1.45 m
+RMSE: approximately 1.80 m
+```
+
+Для MR02 PoC принят консервативный acceptance criterion:
+
+```text
+absolute elevation error <= 5 m
+on the selected validation sample
+```
+
+### Следствие
+
+Native raster stack не является обязательной runtime dependency текущего MR02 PoC.
+
+Архитектура остаётся заменяемой:
+
+```text
+authoritative DGM
+        ↓
+ElevationProvider contract
+        ↓
+AustrianElevationProvider   ← current MR02 PoC
+OfficialCogProvider         ← future option
+LocalGeoTiffProvider        ← future validation / offline option
+        ↓
+ElevationWindow
+        ↓
+terrain feature extraction
+```
+
+Следующий блок MR02 — расчёт elevation / slope / aspect с явным учётом физического горизонтального шага.
+
