@@ -1,31 +1,33 @@
-# 03 — Scoring Model
+# 03 --- Scoring Model
 
 ## Принцип проектирования
 
-Первая модель — **rule-based и explainable**.
+Первая модель --- **rule-based и explainable**.
 
 Мы не начинаем с machine learning.
 
 Модель разделяет:
 
-1. **Habitat Score** — насколько участок подходит виду в принципе.
-2. **Current Conditions Score** — насколько текущая погода поддерживает плодоношение.
-3. **Access / Legal Filter** — можно ли использовать участок с точки зрения доступа и правил.
-4. **Confidence Score** — насколько полны и надёжны входные данные.
-5. **Opportunity Score** — итоговая рекомендация для текущей даты.
+1.  **Habitat Score** --- насколько участок подходит виду в принципе.
+2.  **Current Conditions Score** --- насколько текущая погода
+    поддерживает плодоношение.
+3.  **Access / Legal Filter** --- можно ли использовать участок с точки
+    зрения доступа и правил.
+4.  **Confidence Score** --- насколько полны и надёжны входные данные.
+5.  **Opportunity Score** --- итоговая рекомендация для текущей даты.
 
 ## Предлагаемые группы признаков
 
-| Группа | Начальный вес |
-|---|---:|
-| деревья-хозяева | 25% |
-| почва + геология | 20% |
-| осадки + влажность | 20% |
-| температура + сезон | 10% |
-| высота + уклон + экспозиция | 10% |
-| зрелость леса / disturbance | 5% |
-| растения-индикаторы | 5% |
-| наблюдения | 5% |
+  Группа                          Начальный вес
+  ----------------------------- ---------------
+  деревья-хозяева                           25%
+  почва + геология                          20%
+  осадки + влажность                        20%
+  температура + сезон                       10%
+  высота + уклон + экспозиция               10%
+  зрелость леса / disturbance                5%
+  растения-индикаторы                        5%
+  наблюдения                                 5%
 
 Это **baseline weights**, а не научно подтверждённые параметры.
 
@@ -33,13 +35,13 @@
 
 Следующие факторы не просто уменьшают score:
 
-- сбор запрещён;
-- доступ запрещён;
-- участок находится в protected core zone, где сбор запрещён.
+-   сбор запрещён;
+-   доступ запрещён;
+-   участок находится в protected core zone, где сбор запрещён.
 
 В таких случаях:
 
-```text
+``` text
 eligible = false
 ```
 
@@ -47,7 +49,7 @@ eligible = false
 
 ### Положительные
 
-```text
+``` text
 Fichte dominant                  сильный положительный признак
 Fichte + Buche/Tanne             очень сильный положительный признак
 acidic silicate geology          положительный признак
@@ -60,7 +62,7 @@ shaded hollow                    положительный признак
 
 ### Отрицательные
 
-```text
+``` text
 Brennnessel                      отрицательный индикатор
 dense Brombeere                  отрицательный индикатор
 dense tall grass                 отрицательный индикатор
@@ -73,26 +75,28 @@ carbonate-rich soil              отрицательный baseline-призн�
 
 Начальная рабочая кривая:
 
-| Дней после значимого увлажнения | Относительный timing score |
-|---:|---:|
-| 0–3 | низкий |
-| 4–6 | растёт |
-| 7–10 | хороший |
-| 10–16 | очень хороший |
-| 17–20 | хороший |
-| >20 | зависит от последующих осадков и температуры |
+    Дней после значимого увлажнения                     Относительный timing score
+  --------------------------------- ----------------------------------------------
+                               0--3                                         низкий
+                               4--6                                         растёт
+                              7--10                                        хороший
+                             10--16                                  очень хороший
+                             17--20                                        хороший
+                               \>20   зависит от последующих осадков и температуры
 
-Само понятие «значимое увлажнение» должно учитывать предшествующую засуху.
+Само понятие «значимое увлажнение» должно учитывать предшествующую
+засуху.
 
 ## Важное взаимодействие факторов
 
-```text
+``` text
 30 mm rain after a normal month
 !=
 30 mm rain after three months of drought
 ```
 
-Поэтому scoring engine в дальнейшем потребуется корректировка по drought/history context.
+Поэтому scoring engine в дальнейшем потребуется корректировка по
+drought/history context.
 
 ## Контракт объяснимости
 
@@ -100,7 +104,7 @@ carbonate-rich soil              отрицательный baseline-призн�
 
 Пример:
 
-```json
+``` json
 {
   "opportunity_score": 84,
   "confidence": 67,
@@ -118,15 +122,14 @@ carbonate-rich soil              отрицательный baseline-призн�
 
 Код в `src/mushroom_racing/scoring.py` намеренно остаётся простым.
 
-Его задача — зафиксировать:
+Его задача --- зафиксировать:
 
-- интерфейсы;
-- тесты;
-- объяснимый результат;
-- стабильный baseline.
+-   интерфейсы;
+-   тесты;
+-   объяснимый результат;
+-   стабильный baseline.
 
 Это **ещё не валидированный биологический predictor**.
-
 
 ## Текущее состояние Steinpilz v0.1
 
@@ -135,7 +138,7 @@ MR-5 реализуется постепенно поверх уже сущес�
 
 Текущий pipeline:
 
-```text
+``` text
 GeospatialFeatureSet
         ↓
 species-specific interpretation
@@ -151,7 +154,7 @@ ScoreResult
 
 Scoring components допускают:
 
-```text
+``` text
 float | None
 ```
 
@@ -159,14 +162,14 @@ float | None
 
 Он:
 
-- не превращается в `0.0`;
-- не получает искусственный neutral score `0.5`;
-- исключается из weighted average;
-- снижает Confidence через уменьшение coverage доступных признаков.
+-   не превращается в `0.0`;
+-   не получает искусственный neutral score `0.5`;
+-   исключается из weighted average;
+-   снижает Confidence через уменьшение coverage доступных признаков.
 
 Если для score нет ни одного известного компонента:
 
-```text
+``` text
 score = None
 ```
 
@@ -180,7 +183,7 @@ Confidence рассчитывается отдельно от ecological suitabi
 
 Legal status и ecological eligibility не смешиваются.
 
-```text
+``` text
 collecting_allowed=False
     → hard legal exclusion
 
@@ -204,7 +207,7 @@ eligibility известны и оба равны `True`.
 
 Forest mask используется как prerequisite:
 
-```text
+``` text
 FOREST
     → ecologically_eligible=True
 
@@ -225,7 +228,7 @@ Raw `GeologyQueryResult` интерпретируется только посл�
 
 Baseline affinity:
 
-```text
+``` text
 FAVOURABLE
 UNFAVOURABLE
 MIXED
@@ -234,7 +237,7 @@ UNKNOWN
 
 Текущий v0.1 mapping:
 
-```text
+``` text
 FAVOURABLE    → soil_geology_score = 0.75
 UNFAVOURABLE  → soil_geology_score = 0.25
 MIXED         → None
@@ -243,14 +246,14 @@ UNKNOWN       → None
 
 Это **working hypothesis**, а не научно подтверждённая шкала.
 
-Geology является только bedrock proxy и не должна интерпретироваться
-как измеренный soil pH, soil type или carbonate content почвы.
+Geology является только bedrock proxy и не должна интерпретироваться как
+измеренный soil pH, soil type или carbonate content почвы.
 
 ### Terrain interpretation
 
 Текущий terrain component использует:
 
-```text
+``` text
 elevation
 slope
 aspect
@@ -263,7 +266,7 @@ Aspect имеет намеренно слабое влияние, потому �
 
 Для контрольной точки:
 
-```text
+``` text
 elevation: 1212 m
 slope:     13.23°
 aspect:    341.565° / NNW
@@ -271,50 +274,109 @@ aspect:    341.565° / NNW
 
 текущий baseline даёт:
 
-```text
+``` text
 terrain_score = 0.65
+```
+
+### Temperature interpretation
+
+MR-5.3d temperature slice реализован отдельным species-specific
+interpreter поверх `WeatherSnapshot`.
+
+Используются доступные rolling mean temperature windows:
+
+``` text
+avg_temp_7d_c
+avg_temp_14d_c
+avg_temp_20d_c
+```
+
+Каждое известное окно независимо преобразуется в soft v0.1 score.
+Отсутствующие окна исключаются из расчёта и не подменяются нулём или
+neutral value.
+
+Если все три temperature windows отсутствуют:
+
+``` text
+temperature_season_score = None
+```
+
+Если доступна только часть окон, итоговый temperature score считается
+только по известным значениям.
+
+Текущий soft mapping:
+
+``` text
+temperature < 5 °C       → 0.20
+5 ≤ temperature < 8 °C   → 0.40
+8 ≤ temperature < 10 °C  → 0.60
+10 ≤ temperature ≤ 16 °C → 0.80
+16 < temperature ≤ 19 °C → 0.60
+19 < temperature ≤ 22 °C → 0.40
+temperature > 22 °C      → 0.20
+```
+
+Это **working hypothesis Steinpilz v0.1**, а не научно подтверждённая
+температурная шкала. Значения должны позже проверяться и калиброваться
+по evidence и observations.
+
+Rainfall, drought, humidity, seasonality и timing-after-rain в этом
+temperature slice намеренно не моделируются.
+
+Для контрольной точки:
+
+``` text
+avg_temp_7d_c:  ~14.04
+avg_temp_14d_c: ~15.20
+avg_temp_20d_c: ~15.68
+```
+
+текущий baseline даёт:
+
+``` text
+temperature_season_score = 0.80
 ```
 
 ### Пока не реализовано в Steinpilz interpretation
 
 Следующие признаки по-прежнему остаются неизвестными и не имитируются:
 
-```text
+``` text
 host tree score
 forest soil / pH
 forest maturity
 indicator vegetation
 field observation contribution
 rainfall / moisture score
-temperature / season score
 90-day rainfall context
 rainfall anomaly
 soil moisture
 drought index
 ```
 
-Следующий шаг MR-5 — weather interpretation, начиная с temperature.
+Следующий шаг MR-5 --- отдельный rainfall / moisture interpretation
+slice.
 
 ### Текущая validation
 
-После MR-5.3c:
+После MR-5.3d temperature slice:
 
-```text
-full repository suite: 244 passed in 0.39s
+``` text
+full repository suite: 255 passed in 0.39s
 ```
 
 Это подтверждает текущие contracts и scenario semantics, но не является
 биологической validation модели.
 
-
 ## Стратегия validation
 
 Будущие изменения модели нужно оценивать по:
 
-- положительным наблюдениям;
-- отрицательным наблюдениям после реального поиска;
-- calibration по регионам;
-- calibration по сезонам;
-- calibration по видам.
+-   положительным наблюдениям;
+-   отрицательным наблюдениям после реального поиска;
+-   calibration по регионам;
+-   calibration по сезонам;
+-   calibration по видам.
 
-Нельзя оценивать модель только на известных грибных находках, потому что это создаёт сильный selection bias.
+Нельзя оценивать модель только на известных грибных находках, потому что
+это создаёт сильный selection bias.

@@ -1,10 +1,11 @@
-# 08 — Decision Log
+# 08 --- Decision Log
 
-Этот файл фиксирует только значимые архитектурные и моделирующие решения.
+Этот файл фиксирует только значимые архитектурные и моделирующие
+решения.
 
----
+------------------------------------------------------------------------
 
-## ADR-001 — Сначала rule-based model, не ML
+## ADR-001 --- Сначала rule-based model, не ML
 
 **Статус:** accepted
 
@@ -14,18 +15,20 @@
 
 ### Почему
 
-- модель проще понимать и тестировать;
-- экологические предположения остаются видимыми;
-- надёжного training dataset пока нет;
-- реальные positive и negative observations позже позволят калибровать модель.
+-   модель проще понимать и тестировать;
+-   экологические предположения остаются видимыми;
+-   надёжного training dataset пока нет;
+-   реальные positive и negative observations позже позволят калибровать
+    модель.
 
 ### Следствие
 
-ML откладывается до накопления достаточного количества качественных положительных и отрицательных наблюдений.
+ML откладывается до накопления достаточного количества качественных
+положительных и отрицательных наблюдений.
 
----
+------------------------------------------------------------------------
 
-## ADR-002 — Habitat отделяется от current conditions
+## ADR-002 --- Habitat отделяется от current conditions
 
 **Статус:** accepted
 
@@ -35,46 +38,49 @@ ML откладывается до накопления достаточного
 
 Использовать отдельно:
 
-- Habitat Score;
-- Current Conditions Score;
-- Opportunity Score;
-- Confidence.
+-   Habitat Score;
+-   Current Conditions Score;
+-   Opportunity Score;
+-   Confidence.
 
 ### Почему
 
-Отличный лес может быть бесперспективным во время засухи, а дождливая неделя не делает неподходящий habitat хорошим.
+Отличный лес может быть бесперспективным во время засухи, а дождливая
+неделя не делает неподходящий habitat хорошим.
 
----
+------------------------------------------------------------------------
 
-## ADR-003 — Legal restrictions являются hard filters
+## ADR-003 --- Legal restrictions являются hard filters
 
 **Статус:** accepted
 
 ### Решение
 
-Если сбор подтверждённо запрещён, участок не может быть рекомендован для сбора независимо от ecological score.
+Если сбор подтверждённо запрещён, участок не может быть рекомендован для
+сбора независимо от ecological score.
 
 ### Почему
 
 Высокая экологическая оценка не должна отменять юридическое ограничение.
 
----
+------------------------------------------------------------------------
 
-## ADR-004 — Negative observations сохраняются
+## ADR-004 --- Negative observations сохраняются
 
 **Статус:** accepted
 
 ### Решение
 
-Проверенный участок, на котором target species не найден, является полноценным `Observation`.
+Проверенный участок, на котором target species не найден, является
+полноценным `Observation`.
 
 ### Почему
 
 Обучение/калибровка только по успешным находкам создаёт selection bias.
 
----
+------------------------------------------------------------------------
 
-## ADR-005 — Evidence level должен быть явным
+## ADR-005 --- Evidence level должен быть явным
 
 **Статус:** accepted
 
@@ -82,44 +88,54 @@ ML откладывается до накопления достаточного
 
 Экологические знания различают:
 
-- `confirmed_source`;
-- `expert_heuristic`;
-- `field_observation`;
-- `working_hypothesis`.
+-   `confirmed_source`;
+-   `expert_heuristic`;
+-   `field_observation`;
+-   `working_hypothesis`.
 
 ### Почему
 
 Проект не должен выдавать гипотезу или эвристику за подтверждённый факт.
 
----
+------------------------------------------------------------------------
 
-## ADR-006 — Authoritative DEM отделяется от operational access
+## ADR-006 --- Authoritative DEM отделяется от operational access
 
 **Статус:** accepted
 
 ### Решение
 
-Authoritative elevation source — официальный Austrian Digital Elevation Model, для стартовой зоны прежде всего Land Niederösterreich DGM 10 m, с Geoland.at DGM Österreich как nationwide fallback.
+Authoritative elevation source --- официальный Austrian Digital
+Elevation Model, для стартовой зоны прежде всего Land Niederösterreich
+DGM 10 m, с Geoland.at DGM Österreich как nationwide fallback.
 
-Обычная работа приложения не требует скачивания полного DEM GeoTIFF. Elevation data получаются через небольшие remote windows/tiles и при необходимости кэшируются локально.
+Обычная работа приложения не требует скачивания полного DEM GeoTIFF.
+Elevation data получаются через небольшие remote windows/tiles и при
+необходимости кэшируются локально.
 
-Код обращается к elevation через provider abstraction, поэтому способ доставки может измениться без изменения terrain feature extraction.
+Код обращается к elevation через provider abstraction, поэтому способ
+доставки может измениться без изменения terrain feature extraction.
 
 ### Почему
 
-- официальный GeoTIFF может быть очень большим;
-- приложение обычно использует небольшую область вокруг candidate cell;
-- authority источника и transport/access mechanism — разные ответственности;
-- provider abstraction позволяет сочетать remote, COG/WCS и local GeoTIFF implementations;
-- маленький cache снижает storage и bandwidth requirements.
+-   официальный GeoTIFF может быть очень большим;
+-   приложение обычно использует небольшую область вокруг candidate
+    cell;
+-   authority источника и transport/access mechanism --- разные
+    ответственности;
+-   provider abstraction позволяет сочетать remote, COG/WCS и local
+    GeoTIFF implementations;
+-   маленький cache снижает storage и bandwidth requirements.
 
 ### Validation
 
-Operational provider принимается только после проверки на нескольких контрольных точках против authoritative DGM с зафиксированной допустимой погрешностью.
+Operational provider принимается только после проверки на нескольких
+контрольных точках против authoritative DGM с зафиксированной допустимой
+погрешностью.
 
 ### Следствие
 
-```text
+``` text
 authoritative DGM
         ↓
 ElevationProvider
@@ -131,11 +147,12 @@ local cache
 elevation / slope / aspect
 ```
 
-Полный GeoTIFF остаётся полезным для offline validation и bulk processing, но не является runtime dependency.
+Полный GeoTIFF остаётся полезным для offline validation и bulk
+processing, но не является runtime dependency.
 
----
+------------------------------------------------------------------------
 
-## ADR-007 — Free-first, OCI-preferred, cloud-agnostic infrastructure
+## ADR-007 --- Free-first, OCI-preferred, cloud-agnostic infrastructure
 
 **Статус:** accepted
 
@@ -145,34 +162,43 @@ elevation / slope / aspect
 
 > **free-first, OCI-preferred, cloud-agnostic**.
 
-Для development/MVP сначала используются бесплатные и open-source инструменты. Для первого cloud deployment предпочтительным кандидатом является Oracle Cloud Infrastructure Free Tier.
+Для development/MVP сначала используются бесплатные и open-source
+инструменты. Для первого cloud deployment предпочтительным кандидатом
+является Oracle Cloud Infrastructure Free Tier.
 
-Domain model, feature extraction и scoring engine не зависят от Oracle-specific SDK/API.
+Domain model, feature extraction и scoring engine не зависят от
+Oracle-specific SDK/API.
 
 ### Почему
 
-- learning/portfolio проект не должен создавать необязательные постоянные расходы;
-- OCI может дать бесплатную инфраструктуру для небольшого backend/demo;
-- cloud portability упрощает тестирование и уменьшает lock-in;
-- бесплатность managed service сама по себе не является причиной менять более подходящую технологию.
+-   learning/portfolio проект не должен создавать необязательные
+    постоянные расходы;
+-   OCI может дать бесплатную инфраструктуру для небольшого
+    backend/demo;
+-   cloud portability упрощает тестирование и уменьшает lock-in;
+-   бесплатность managed service сама по себе не является причиной
+    менять более подходящую технологию.
 
 ### Предпочтительное использование OCI
 
-- Compute — backend и небольшие data jobs;
-- Object Storage — разрешённые GIS/data artifacts и cache;
-- Resource Manager / Terraform — Infrastructure as Code;
-- Monitoring / Logging — после появления постоянно работающего сервиса;
-- Vault — secrets после появления credentials.
+-   Compute --- backend и небольшие data jobs;
+-   Object Storage --- разрешённые GIS/data artifacts и cache;
+-   Resource Manager / Terraform --- Infrastructure as Code;
+-   Monitoring / Logging --- после появления постоянно работающего
+    сервиса;
+-   Vault --- secrets после появления credentials.
 
 ### Ограничения
 
-- Free Tier quotas проверяются непосредственно перед deployment;
-- никакой recurring paid resource не включается без отдельного решения;
-- cloud deployment не является зависимостью для local development/testing.
+-   Free Tier quotas проверяются непосредственно перед deployment;
+-   никакой recurring paid resource не включается без отдельного
+    решения;
+-   cloud deployment не является зависимостью для local
+    development/testing.
 
 ### Следствие
 
-```text
+``` text
 core / domain / scoring
         ↓
 standard interfaces
@@ -182,9 +208,9 @@ application adapters
 local / OCI / other cloud
 ```
 
----
+------------------------------------------------------------------------
 
-## ADR-008 — Unknown data не приравниваются к отрицательному значению
+## ADR-008 --- Unknown data не приравниваются к отрицательному значению
 
 **Статус:** accepted
 
@@ -192,78 +218,94 @@ local / OCI / other cloud
 
 Domain model явно различает:
 
-```text
+``` text
 unknown / missing
 ```
 
 и
 
-```text
+``` text
 known zero / false
 ```
 
-Для optional данных используется `None` / JSON `null`, если значение неизвестно или не записано.
+Для optional данных используется `None` / JSON `null`, если значение
+неизвестно или не записано.
 
 Примеры:
 
-- `rain_24h_mm = 0.0` — известно, что осадков не было;
-- `rain_24h_mm = null` — данных нет;
-- `moss_present = false` — проверено, мха нет;
-- `moss_present = null` — признак не проверен/не записан;
-- `collecting_allowed = false` — подтверждён запрет;
-- `collecting_allowed = null` — юридический статус неизвестен.
+-   `rain_24h_mm = 0.0` --- известно, что осадков не было;
+-   `rain_24h_mm = null` --- данных нет;
+-   `moss_present = false` --- проверено, мха нет;
+-   `moss_present = null` --- признак не проверен/не записан;
+-   `collecting_allowed = false` --- подтверждён запрет;
+-   `collecting_allowed = null` --- юридический статус неизвестен.
 
 ### Почему
 
-Смешивание missing data с реальным нулём или `false` создаёт систематические ошибки:
+Смешивание missing data с реальным нулём или `false` создаёт
+систематические ошибки:
 
-- неизвестный legal status может ошибочно стать разрешением;
-- пропущенный погодный показатель может выглядеть как нулевое значение;
-- непроставленный полевой признак может ошибочно стать negative observation.
+-   неизвестный legal status может ошибочно стать разрешением;
+-   пропущенный погодный показатель может выглядеть как нулевое
+    значение;
+-   непроставленный полевой признак может ошибочно стать negative
+    observation.
 
 ### Следствие
 
-- provider adapters должны сохранять missingness, а не подставлять произвольные defaults;
-- feature extraction/scoring обязаны отдельно решать, как работать с `None`;
-- confidence может снижаться из-за отсутствующих данных, но отсутствие данных не должно тихо превращаться в отрицательный ecological signal.
+-   provider adapters должны сохранять missingness, а не подставлять
+    произвольные defaults;
+-   feature extraction/scoring обязаны отдельно решать, как работать с
+    `None`;
+-   confidence может снижаться из-за отсутствующих данных, но отсутствие
+    данных не должно тихо превращаться в отрицательный ecological
+    signal.
 
----
+------------------------------------------------------------------------
 
-## ADR-009 — basemap.at используется как default presentation basemap
+## ADR-009 --- basemap.at используется как default presentation basemap
 
 **Статус:** accepted
 
 ### Решение
 
-Для web-карты `mushroom-racing` базовой картографической подложкой по умолчанию является **basemap.at**.
+Для web-карты `mushroom-racing` базовой картографической подложкой по
+умолчанию является **basemap.at**.
 
-Клиентская карта строится на **MapLibre GL JS**. Поверх базовой карты отображаются собственные аналитические слои `mushroom-racing`, например:
+Клиентская карта строится на **MapLibre GL JS**. Поверх базовой карты
+отображаются собственные аналитические слои `mushroom-racing`, например:
 
-- opportunity / habitat score;
-- forest / geology context;
-- weather-derived layers;
-- legal exclusions;
-- observations.
+-   opportunity / habitat score;
+-   forest / geology context;
+-   weather-derived layers;
+-   legal exclusions;
+-   observations.
 
-`basemap.at` используется как **presentation basemap**, а не как источник признаков scoring model.
+`basemap.at` используется как **presentation basemap**, а не как
+источник признаков scoring model.
 
-DEM, geology, forest, weather, protected areas и legal rules продолжают поступать из отдельно выбранных и валидированных authoritative sources.
+DEM, geology, forest, weather, protected areas и legal rules продолжают
+поступать из отдельно выбранных и валидированных authoritative sources.
 
 ### Почему
 
-- basemap.at основана на официальных геоданных австрийских администраций;
-- покрывает территорию Австрии;
-- допускает свободное использование по CC BY 4.0 при корректной атрибуции;
-- позволяет не создавать и не обслуживать собственную базовую карту;
-- соответствует free-first подходу проекта;
-- MapLibre уже выбран как предпочтительный frontend map renderer;
-- разделение presentation и analytical data сохраняет прозрачность происхождения scoring features.
+-   basemap.at основана на официальных геоданных австрийских
+    администраций;
+-   покрывает территорию Австрии;
+-   допускает свободное использование по CC BY 4.0 при корректной
+    атрибуции;
+-   позволяет не создавать и не обслуживать собственную базовую карту;
+-   соответствует free-first подходу проекта;
+-   MapLibre уже выбран как предпочтительный frontend map renderer;
+-   разделение presentation и analytical data сохраняет прозрачность
+    происхождения scoring features.
 
 ### Attribution
 
-В публичной карте должна присутствовать корректная атрибуция basemap.at, например:
+В публичной карте должна присутствовать корректная атрибуция basemap.at,
+например:
 
-```text
+``` text
 Grundkarte: basemap.at
 ```
 
@@ -271,21 +313,25 @@ Grundkarte: basemap.at
 
 ### Ограничения и implementation note
 
-На момент принятия ADR basemap.at находится в переходе к новой vector-tile инфраструктуре. Существующие raster/legacy products доступны, а новая vector basemap анонсирована как основной будущий формат.
+На момент принятия ADR basemap.at находится в переходе к новой
+vector-tile инфраструктуре. Существующие raster/legacy products
+доступны, а новая vector basemap анонсирована как основной будущий
+формат.
 
-Поэтому ADR фиксирует **поставщика и архитектурную роль**, но не фиксирует конкретный production endpoint.
+Поэтому ADR фиксирует **поставщика и архитектурную роль**, но не
+фиксирует конкретный production endpoint.
 
 Перед реализацией MR-6 необходимо повторно проверить:
 
-- актуальный production endpoint;
-- рекомендуемый MapLibre integration path;
-- статус vector tiles;
-- attribution requirements;
-- условия доступности и технические ограничения сервиса.
+-   актуальный production endpoint;
+-   рекомендуемый MapLibre integration path;
+-   статус vector tiles;
+-   attribution requirements;
+-   условия доступности и технические ограничения сервиса.
 
 ### Следствие
 
-```text
+``` text
 basemap.at
     ↓
 presentation basemap
@@ -297,29 +343,34 @@ mushroom-racing analytical overlays
 validated analytical providers
 ```
 
-Scoring core не зависит от basemap.at и остаётся работоспособным без frontend-карты.
+Scoring core не зависит от basemap.at и остаётся работоспособным без
+frontend-карты.
 
----
+------------------------------------------------------------------------
 
-## ADR-010 — Карта использует progressive spatial refinement
+## ADR-010 --- Карта использует progressive spatial refinement
 
 **Статус:** accepted
 
 ### Решение
 
-Пользовательский map workflow строится иерархически: приложение не рассчитывает максимальное spatial resolution сразу для всей области поиска.
+Пользовательский map workflow строится иерархически: приложение не
+рассчитывает максимальное spatial resolution сразу для всей области
+поиска.
 
 На обзорном уровне пользователь выбирает радиус от Вены:
 
-```text
+``` text
 50 / 100 / 150 / 200 km
 ```
 
-После этого приложение отображает coarse analytical layer. При выборе перспективной зоны загружается или рассчитывается более детальный слой для меньшей территории.
+После этого приложение отображает coarse analytical layer. При выборе
+перспективной зоны загружается или рассчитывается более детальный слой
+для меньшей территории.
 
 Принцип:
 
-```text
+``` text
 large search area
         ↓
 coarse analytical zones
@@ -331,47 +382,59 @@ higher-resolution candidate cells
 local sector
 ```
 
-Конкретный размер cells не фиксируется этим ADR и должен соответствовать resolution исходных данных, производительности и полезности результата.
+Конкретный размер cells не фиксируется этим ADR и должен соответствовать
+resolution исходных данных, производительности и полезности результата.
 
 ### Почему
 
-- нет необходимости вычислять детальные признаки для всей территории радиусом до 200 km;
-- coarse-to-fine workflow уменьшает объём передаваемых и рассчитываемых данных;
-- пользователь естественно переходит от выбора региона к конкретному лесному сектору;
-- высокая оценка большого региона не должна создавать впечатление, что вся его территория одинаково перспективна;
-- architecture остаётся совместимой с provider-based feature extraction и explainable scoring.
+-   нет необходимости вычислять детальные признаки для всей территории
+    радиусом до 200 km;
+-   coarse-to-fine workflow уменьшает объём передаваемых и
+    рассчитываемых данных;
+-   пользователь естественно переходит от выбора региона к конкретному
+    лесному сектору;
+-   высокая оценка большого региона не должна создавать впечатление, что
+    вся его территория одинаково перспективна;
+-   architecture остаётся совместимой с provider-based feature
+    extraction и explainable scoring.
 
 ### Следствие
 
-- API/frontend должны поддерживать запрос analytical data для текущего bbox / selected region;
-- детальность feature extraction может зависеть от уровня карты;
-- overview score и local-sector score являются разными spatial aggregates и не должны молча смешиваться;
-- legal hard exclusions применяются на каждом уровне, где соответствующая geometry доступна;
-- scoring core остаётся независимым от MapLibre и presentation basemap.
+-   API/frontend должны поддерживать запрос analytical data для текущего
+    bbox / selected region;
+-   детальность feature extraction может зависеть от уровня карты;
+-   overview score и local-sector score являются разными spatial
+    aggregates и не должны молча смешиваться;
+-   legal hard exclusions применяются на каждом уровне, где
+    соответствующая geometry доступна;
+-   scoring core остаётся независимым от MapLibre и presentation
+    basemap.
 
----
+------------------------------------------------------------------------
 
-## ADR-011 — Organic Maps используется как внешний offline navigation layer через GPX
+## ADR-011 --- Organic Maps используется как внешний offline navigation layer через GPX
 
 **Статус:** accepted
 
 ### Решение
 
-`mushroom-racing` не реализует собственную полноценную offline-навигацию в MVP.
+`mushroom-racing` не реализует собственную полноценную offline-навигацию
+в MVP.
 
 Приложение отвечает за:
 
-- выбор перспективного сектора;
-- построение candidate circular route;
-- legal/access filtering;
-- route waypoints;
-- экспорт маршрута в GPX.
+-   выбор перспективного сектора;
+-   построение candidate circular route;
+-   legal/access filtering;
+-   route waypoints;
+-   экспорт маршрута в GPX.
 
-Дальнейшее использование маршрута в лесу передаётся внешнему mobile client — **Organic Maps**.
+Дальнейшее использование маршрута в лесу передаётся внешнему mobile
+client --- **Organic Maps**.
 
 Предпочтительный workflow:
 
-```text
+``` text
 mushroom-racing routing
         ↓
 GPX track + waypoints
@@ -385,17 +448,20 @@ offline map + GPS + imported track
 
 ### Почему
 
-- Organic Maps уже решает задачу offline basemap и отображения GPS position;
-- проекту не нужно создавать собственные offline map packages и navigation engine;
-- GPX является переносимым стандартным форматом;
-- scope MVP уменьшается без потери основного field workflow;
-- routing intelligence остаётся ответственностью `mushroom-racing`, а отображение offline-карты — внешнего клиента.
+-   Organic Maps уже решает задачу offline basemap и отображения GPS
+    position;
+-   проекту не нужно создавать собственные offline map packages и
+    navigation engine;
+-   GPX является переносимым стандартным форматом;
+-   scope MVP уменьшается без потери основного field workflow;
+-   routing intelligence остаётся ответственностью `mushroom-racing`, а
+    отображение offline-карты --- внешнего клиента.
 
 ### MVP contract
 
 Обязательный contract:
 
-```text
+``` text
 offline map
 + current GPS position
 + visible imported track
@@ -403,53 +469,59 @@ offline map
 
 Не является обязательным:
 
-```text
+``` text
 turn-by-turn navigation
 voice guidance
 ```
 
-`mushroom-racing` не должен зависеть от того, поддерживает ли внешнее приложение полноценную turn-by-turn navigation по произвольному импортированному GPX.
+`mushroom-racing` не должен зависеть от того, поддерживает ли внешнее
+приложение полноценную turn-by-turn navigation по произвольному
+импортированному GPX.
 
 ### Приватность
 
-GPX не должен автоматически включать точные приватные координаты успешных hotspot-ов.
+GPX не должен автоматически включать точные приватные координаты
+успешных hotspot-ов.
 
 Waypoints могут описывать:
 
-- parking / legal start;
-- entry point;
-- high-opportunity sector;
-- terrain/environment context;
-- return point.
+-   parking / legal start;
+-   entry point;
+-   high-opportunity sector;
+-   terrain/environment context;
+-   return point.
 
-Добавление точной private observation coordinate требует отдельного явного действия пользователя.
+Добавление точной private observation coordinate требует отдельного
+явного действия пользователя.
 
 ### Ограничения
 
-Capabilities Organic Maps являются внешней зависимостью и могут меняться.
+Capabilities Organic Maps являются внешней зависимостью и могут
+меняться.
 
 Перед реализацией MR-7 необходимо повторно проверить:
 
-- актуальный GPX import workflow;
-- mobile open/share behavior;
-- поддержку track и waypoint;
-- ограничения отображения импортированного маршрута.
+-   актуальный GPX import workflow;
+-   mobile open/share behavior;
+-   поддержку track и waypoint;
+-   ограничения отображения импортированного маршрута.
 
 ### Следствие
 
 В MVP не реализуются:
 
-- собственные offline tiles;
-- offline map package management;
-- GPS navigation engine;
-- voice guidance;
-- собственная turn-by-turn navigation.
+-   собственные offline tiles;
+-   offline map package management;
+-   GPS navigation engine;
+-   voice guidance;
+-   собственная turn-by-turn navigation.
 
-Полноценная собственная offline-навигация добавляется только при появлении отдельной подтверждённой необходимости.
+Полноценная собственная offline-навигация добавляется только при
+появлении отдельной подтверждённой необходимости.
 
----
+------------------------------------------------------------------------
 
-## ADR-012 — Acquisition, assembly, interpretation и scoring разделены
+## ADR-012 --- Acquisition, assembly, interpretation и scoring разделены
 
 **Статус:** accepted
 
@@ -457,7 +529,7 @@ Capabilities Organic Maps являются внешней зависимость
 
 Geospatial pipeline проекта разделяется на отдельные ответственности:
 
-```text
+``` text
 external data sources
         ↓
 provider acquisition
@@ -476,20 +548,20 @@ species-specific interpretation или scoring.
 
 Он сохраняет уже нормализованные результаты предыдущих слоёв, включая:
 
-- `TerrainFeatures`;
-- `ForestResult`;
-- `GeologyQueryResult`;
-- `WeatherSnapshot`;
-- текущий legal status (`collecting_allowed`).
+-   `TerrainFeatures`;
+-   `ForestResult`;
+-   `GeologyQueryResult`;
+-   `WeatherSnapshot`;
+-   текущий legal status (`collecting_allowed`).
 
 ### Почему
 
 Разделение предотвращает смешивание:
 
-- source acquisition;
-- normalization;
-- domain interpretation;
-- scoring rules.
+-   source acquisition;
+-   normalization;
+-   domain interpretation;
+-   scoring rules.
 
 Это особенно важно для geology: source-level `material` и
 `representative_lithology` не должны автоматически превращаться в
@@ -497,11 +569,11 @@ species-specific interpretation или scoring.
 
 Аналогично:
 
-- `ForestStatus.UNKNOWN` не превращается в `NON_FOREST`;
-- weather `None` не превращается в `0`;
-- `collecting_allowed=None` не превращается в разрешение или запрет;
-- наличие feature не означает автоматически положительный или
-  отрицательный ecological signal.
+-   `ForestStatus.UNKNOWN` не превращается в `NON_FOREST`;
+-   weather `None` не превращается в `0`;
+-   `collecting_allowed=None` не превращается в разрешение или запрет;
+-   наличие feature не означает автоматически положительный или
+    отрицательный ecological signal.
 
 ### Следствие
 
@@ -514,7 +586,7 @@ Species-specific interpretation и scoring выполняются отдельн
 Недопустимо добавлять в MR-3 contract без отдельного архитектурного
 решения такие поля, как:
 
-```text
+``` text
 is_carbonate
 is_silicate
 geology_score
@@ -529,7 +601,7 @@ eligible
 
 Будущая архитектура:
 
-```text
+``` text
 providers
     ↓
 normalized source contracts
@@ -547,15 +619,15 @@ explainable scoring
 
 Решение подтверждено MR-3:
 
-```text
+``` text
 full repository suite: 210 passed in 0.38s
 offline integration fixture: PASS
 live GeospatialFeatureSet smoke: PASS
 ```
 
----
+------------------------------------------------------------------------
 
-## ADR-013 — Missing data, legal eligibility и ecological eligibility разделяются в scoring
+## ADR-013 --- Missing data, legal eligibility и ecological eligibility разделяются в scoring
 
 **Статус:** accepted
 
@@ -563,7 +635,7 @@ live GeospatialFeatureSet smoke: PASS
 
 Scoring layer явно различает:
 
-```text
+``` text
 known ecological value
 missing ecological value
 legal eligibility
@@ -573,13 +645,13 @@ confidence
 
 Scoring components могут иметь тип:
 
-```text
+``` text
 float | None
 ```
 
 `None` означает unknown и не превращается автоматически в:
 
-```text
+``` text
 0.0
 0.5
 False
@@ -587,7 +659,7 @@ False
 
 Legal и ecological eligibility хранятся отдельно.
 
-```text
+``` text
 collecting_allowed=False
     → hard legal exclusion
 
@@ -613,19 +685,20 @@ Confidence не умножается на Opportunity Score и не исполь
 
 > насколько полно представлены ожидаемые входные данные?
 
-Missing scoring component исключается из ecological weighted average,
-но уменьшает Confidence через coverage доступных компонентов.
+Missing scoring component исключается из ecological weighted average, но
+уменьшает Confidence через coverage доступных компонентов.
 
 ### Почему
 
 Это предотвращает несколько классов ошибок:
 
-- отсутствие tree-species data не становится плохим tree-species score;
-- неизвестная geology не становится neutral geology `0.5`;
-- неизвестный legal status не становится разрешением или запретом;
-- `ForestStatus.UNKNOWN` не становится `NON_FOREST`;
-- высокий ecological score при низкой полноте данных остаётся видимым
-  как высокий score с низким Confidence, а не скрыто уменьшается.
+-   отсутствие tree-species data не становится плохим tree-species
+    score;
+-   неизвестная geology не становится neutral geology `0.5`;
+-   неизвестный legal status не становится разрешением или запретом;
+-   `ForestStatus.UNKNOWN` не становится `NON_FOREST`;
+-   высокий ecological score при низкой полноте данных остаётся видимым
+    как высокий score с низким Confidence, а не скрыто уменьшается.
 
 ### Species-specific interpretation
 
@@ -634,7 +707,7 @@ Forest, geology, terrain и weather интерпретируются после
 
 На текущем этапе:
 
-```text
+``` text
 FOREST
     → ecological prerequisite satisfied
 
@@ -647,7 +720,18 @@ raw geology
 
 terrain
     → Steinpilz terrain baseline
+
+WeatherSnapshot temperature windows
+    → Steinpilz temperature interpretation
+    → optional temperature_season_score
 ```
+
+Temperature interpretation использует доступные 7/14/20-day mean
+temperature windows. Missing windows исключаются из расчёта, а не
+подменяются нулём или neutral value.
+
+Rainfall, drought, humidity и timing-after-rain остаются отдельной
+задачей и не смешиваются с temperature interpretation.
 
 Неподтверждённые thresholds и числовые mappings остаются
 `working_hypothesis` и не требуют отдельного ADR при локальной
@@ -657,9 +741,8 @@ terrain
 
 Решение подтверждено последовательными MR-5 scenario tests.
 
-Текущее состояние после MR-5.3c:
+Текущее состояние после MR-5.3d temperature slice:
 
-```text
-full repository suite: 244 passed in 0.39s
+``` text
+full repository suite: 255 passed in 0.39s
 ```
-

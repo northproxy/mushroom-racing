@@ -173,8 +173,8 @@ docs/data_sources/FOREST.md
 -   реализованы strict rolling rainfall windows 1/3/7/14/21/28 days;
 -   реализованы mean-temperature windows 7/14/20 days;
 -   отсутствующий день или `None` внутри окна не подменяются нулём;
--   реализован assembly `WeatherSeries -> WeatherFeatures ->
-    WeatherSnapshot`;
+-   реализован assembly
+    `WeatherSeries -> WeatherFeatures ->     WeatherSnapshot`;
 -   live end-to-end smoke подтверждён на `47.7200, 15.9000`;
 -   historical data проверены на январе 1961.
 
@@ -216,21 +216,22 @@ drought index
 ``` text
 docs/data_sources/WEATHER.md
 ```
-### MR-2.7 — protected-area geometry + licensing PoC
+
+### MR-2.7 --- protected-area geometry + licensing PoC
 
 Status: deferred
 
-Protected-area geometry and automated legal-rule resolution are postponed
-until the core application workflow is operational.
+Protected-area geometry and automated legal-rule resolution are
+postponed until the core application workflow is operational.
 
-For the current MVP development stage:
-- legal status is not inferred automatically;
-- collecting_allowed remains unknown unless explicitly confirmed;
-- protected-area membership is not used as a hard filter;
-- the user performs the legal/collection-permission check manually.
+For the current MVP development stage: - legal status is not inferred
+automatically; - collecting_allowed remains unknown unless explicitly
+confirmed; - protected-area membership is not used as a hard filter; -
+the user performs the legal/collection-permission check manually.
 
 Automated legal hard exclusions will be introduced only after
-authoritative geometry and the corresponding legal rule are both verified.
+authoritative geometry and the corresponding legal rule are both
+verified.
 
 ### Definition of Done MR-2 ✅
 
@@ -250,10 +251,8 @@ Definition of Done и перенесены на более поздний эта
 188 passed in 0.35s
 ```
 
-Operational data paths для выбранных текущих P0 layers подтверждены
-live smoke tests и документированы.
-
-
+Operational data paths для выбранных текущих P0 layers подтверждены live
+smoke tests и документированы.
 
 ## MR-3 --- Geospatial feature extraction ✅
 
@@ -279,7 +278,8 @@ live smoke tests и документированы.
     `extract_terrain_features`;
 -   mismatched `WeatherSnapshot.spot_id` отбрасывается fail-fast до
     внешних provider calls;
--   добавлен offline integration fixture для известной контрольной точки;
+-   добавлен offline integration fixture для известной контрольной
+    точки;
 -   выполнен live end-to-end smoke через реальные Austrian providers.
 
 Архитектурный pipeline:
@@ -385,7 +385,7 @@ score_spot()
 ScoreResult
 ```
 
-### MR-5.1 — tri-state legal semantics ✅
+### MR-5.1 --- tri-state legal semantics ✅
 
 Реализовано:
 
@@ -402,7 +402,7 @@ collecting_allowed=None
     → не hard exclusion
 ```
 
-### MR-5.2 — missing-data aware scoring ✅
+### MR-5.2 --- missing-data aware scoring ✅
 
 Реализовано:
 
@@ -412,7 +412,7 @@ collecting_allowed=None
 -   Confidence считается отдельно по coverage доступных компонентов;
 -   полностью отсутствующие компоненты дают `score=None`, а не `0`.
 
-### MR-5.3a — forest interpretation / ecological eligibility ✅
+### MR-5.3a --- forest interpretation / ecological eligibility ✅
 
 Реализовано:
 
@@ -431,7 +431,7 @@ UNKNOWN
 Forest presence не превращается автоматически в положительный habitat
 score.
 
-### MR-5.3b — geology interpretation ✅
+### MR-5.3b --- geology interpretation ✅
 
 Добавлен species-specific geology layer.
 
@@ -457,7 +457,7 @@ UNKNOWN       → None
 
 Geology остаётся bedrock proxy и не подменяет soil type или soil pH.
 
-### MR-5.3c — terrain interpretation ✅
+### MR-5.3c --- terrain interpretation ✅
 
 Используются:
 
@@ -483,9 +483,46 @@ Aspect имеет слабое влияние до появления drought co
 terrain_score = 0.65
 ```
 
+### MR-5.3d --- temperature interpretation ✅
+
+Добавлен отдельный species-specific temperature layer поверх
+`WeatherSnapshot`.
+
+Используются:
+
+``` text
+avg_temp_7d_c
+avg_temp_14d_c
+avg_temp_20d_c
+```
+
+Реализовано:
+
+-   missing temperature windows сохраняются как unknown;
+-   известный `0.0 °C` не трактуется как missing;
+-   partial windows рассчитываются только по известным значениям;
+-   temperature thresholds являются soft v0.1 working hypotheses;
+-   extreme cold / heat дают soft negative, а не hard exclusion;
+-   rainfall, drought, humidity и timing-after-rain не смешиваются с
+    temperature slice.
+
+Для контрольной точки:
+
+``` text
+avg_temp_7d_c:  ~14.04
+avg_temp_14d_c: ~15.20
+avg_temp_20d_c: ~15.68
+```
+
+текущий baseline:
+
+``` text
+temperature_season_score = 0.80
+```
+
 ### Текущее состояние scoring inputs
 
-Для live control coordinate после MR-5.3c:
+Для live control coordinate после MR-5.3d temperature slice:
 
 ``` text
 ecologically_eligible = True
@@ -493,7 +530,7 @@ ecologically_eligible = True
 host_tree_score = None
 soil_geology_score = 0.25
 moisture_score = None
-temperature_season_score = None
+temperature_season_score = 0.80
 terrain_score = 0.65
 forest_maturity_score = None
 indicator_vegetation_score = None
@@ -514,37 +551,30 @@ collecting_allowed = None
 ### Следующий шаг
 
 ``` text
-MR-5.3d — weather interpretation
+MR-5.3e — rainfall / moisture interpretation
 ```
 
-Сначала:
-
-``` text
-temperature interpretation
-```
-
-затем отдельно:
-
-``` text
-rainfall interpretation
-```
-
-Rainfall slice должен учитывать, что пока отсутствуют `rain_90d`,
+Rainfall slice должен учитывать, что пока доступны strict rolling
+rainfall windows 1/3/7/14/21/28 days, но отсутствуют `rain_90d`,
 rainfall anomaly, soil moisture и drought context.
+
+Перед реализацией необходимо отдельно зафиксировать минимальный moisture
+v0.1 contract и soft working hypotheses, не выдавая rainfall proxy за
+измеренную soil moisture.
 
 ### Проверка
 
-Текущий repository-level validation после MR-5.3c:
+Текущий repository-level validation после MR-5.3d temperature slice:
 
 ``` text
-244 passed in 0.39s
+255 passed in 0.39s
 ```
 
 Дальнейшая проверка:
 
 -   scenario tests;
 -   full repository `pytest`;
--   после появления достаточных observations — comparison against
+-   после появления достаточных observations --- comparison against
     documented positive и negative field observations.
 
 ## MR-6 --- Interactive Map MVP
