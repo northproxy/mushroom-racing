@@ -251,220 +251,65 @@ selected primary source
 
 # 6. Высота, slope и aspect
 
-## Authoritative source — Austrian / regional DGM
+## Выбранные источники
 
-Источником истины для высоты и производных terrain features считаем официальный Digitales Geländemodell.
+Authoritative source для высоты и производных terrain features — официальный Digitales Geländemodell (DGM).
 
-### Предпочтительный authoritative dataset для стартовой зоны
+- **Land Niederösterreich DGM 10 m** — основной authoritative dataset для стартовой зоны;
+- **Geoland.at DGM Österreich 10 m** — nationwide fallback.
 
-**Land Niederösterreich — DGM 10 m**
+Для MR02 operational access реализован `AustrianElevationProvider`. Он используется как transport/access layer и **не заменяет authoritative source**.
 
-Характеристики:
-
-```text
-resolution: 10 x 10 m
-format: GeoTIFF
-crs: EPSG:31259
-pixel_type: float32
-nodata: -9999
-license: CC BY 4.0
-```
-
-### Общенациональный authoritative fallback
-
-**Geoland.at — DGM Österreich 10 m**
-
-Покрытие:
+## Текущий статус MR02
 
 ```text
-Austria
-```
-
-Формат:
-
-```text
-GeoTIFF
-```
-
-Лицензия:
-
-```text
-CC BY 4.0
-```
-
-### Важное различие: source of truth != access method
-
-Официальный GeoTIFF может быть слишком большим для обычной работы приложения и локальной разработки.
-
-Поэтому проект разделяет:
-
-```text
-authoritative dataset
-    = официальный DGM
-
-operational access
-    = небольшой remote window / tile
-
-local cache
-    = только реально запрошенные фрагменты
-```
-
-Операционный provider не становится новым источником истины только потому, что через него удобнее получать данные.
-
-### Access strategy
-
-Во время обычной работы **не скачиваем полный DEM**, если это не требуется для отдельной офлайн-задачи или валидации.
-
-Предпочтительный pipeline:
-
-```text
-lat/lon или bbox
-        ↓
-ElevationProvider
-        ↓
-маленькое DEM window / tile
-        ↓
-local cache
-        ↓
-elevation / slope / aspect
-```
-
-Local cache остаётся частью целевой схемы, но на текущем этапе MR02 ещё не реализован.
-
-Если в будущем официальный DGM будет доступен как COG, WCS или другой subset-friendly service, такой способ доступа имеет приоритет.
-
-### Интерфейсный принцип
-
-Код feature extraction не зависит от конкретного способа доставки DEM.
-
-Текущий контракт:
-
-```python
-class ElevationProvider(Protocol):
-    def get_window(
-        self,
-        latitude: float,
-        longitude: float,
-        *,
-        radius_m: float,
-    ) -> "ElevationWindow":
-        ...
-```
-
-`ElevationWindow` хранит нормализованный небольшой raster window и геопространственный контекст. Provider не привязан к `ForestSpot`.
-
-Возможные реализации:
-
-```text
-AustrianElevationProvider
-OfficialCogProvider
-LocalGeoTiffProvider
-```
-
-### Operational provider PoC — Austrian Elevation Service
-
-Для MR02 как временный operational access layer реализован и проверен `AustrianElevationProvider`.
-
-Сервис предоставляет производные от австрийского DGM данные с шагом 10 м через небольшие HTTP-accessible raster rows в `EPSG:3857`.
-
-Использование:
-
-```text
-WGS84 lat/lon
-        ↓
-AustrianElevationProvider
-        ↓
-HTTP raster rows
-        ↓
-ElevationWindow
-```
-
-Provider **не считается authoritative source**.
-
-Известные ограничения:
-
-- сервис является сторонним prototype;
-- underlying elevation data происходят из австрийского DGM / Geoland.at;
-- данные преобразованы в `EPSG:3857`;
-- значения высоты округлены до целых метров;
-- HTTP availability внешнего сервиса не контролируется проектом;
-- provider пока не имеет local cache;
-- результаты должны периодически сверяться с authoritative DGM.
-
-### Проверка direct remote access к официальному DGM
-
-Сервер Land Niederösterreich для `DTM_10x10.zip` проверен на HTTP Range Requests.
-
-Проверенный ответ:
-
-```text
-HTTP/1.1 206 Partial Content
-Accept-Ranges: bytes
-Content-Range: bytes 0-1023/1060848944
-```
-
-Это подтверждает, что официальный архив технически поддерживает частичную HTTP-загрузку.
-
-Прямое чтение GeoTIFF через Rasterio/GDAL на основной Windows development-машине пока не используется: Windows Code Integrity policy блокирует нативный модуль Rasterio (`_err.cp314-win_amd64.pyd`). Это ограничение development environment, а не официального DGM.
-
-Отключение системной защиты ради проекта не применяется.
-
-### Validation against authoritative DGM
-
-Operational provider проверен вручную против `NÖ Atlas → Koordinaten / Höhe → Gelände` на четырёх контрольных точках.
-
-| WGS84 | Provider center | NÖ Atlas Gelände | Absolute error | Provider window |
-|---|---:|---:|---:|---:|
-| `47.95856, 16.44020` | 196.0 m | 198.10 m | 2.10 m | 196–199 m |
-| `48.33000, 16.70000` | 164.0 m | 163.90 m | 0.10 m | 163–167 m |
-| `48.05000, 16.15000` | 427.0 m | 427.80 m | 0.80 m | 423–434 m |
-| `47.72000, 15.90000` | 1212.0 m | 1214.80 m | 2.80 m | 1209–1218 m |
-
-Для этой validation sample:
-
-```text
-maximum absolute error: 2.80 m
-mean absolute error: 1.45 m
-RMSE: approximately 1.80 m
-```
-
-Критерий приёмки для MR02 PoC:
-
-```text
-absolute elevation error <= 5 m
-on the selected validation sample
-```
-
-Все четыре контрольные точки проходят этот критерий.
-
-Этот результат подтверждает пригодность provider-а для дальнейшего MR02 PoC, но **не является заявлением о гарантированной точности ±5 м по всей Австрии** и не является основанием для систематической correction offset.
-
-### Использование
-
-Из DEM планируется вычислять:
-
-- elevation;
-- slope;
-- aspect;
-- позже terrain-position features.
-
-На текущем этапе подтверждены получение и validation elevation. Расчёт slope/aspect является следующим блоком MR02 и ещё не считается проверенным.
-
-### Статус
-
-```text
-authoritative source: selected
+authoritative DEM source: selected
 operational provider: AustrianElevationProvider — validated for MR02 PoC
 elevation validation: completed on 4-point sample
+terrain feature extraction: implemented
+slope/aspect extraction: unit validated + live smoke tested
+independent authoritative slope/aspect validation: not yet performed
 local cache: planned
-slope/aspect extraction: not yet implemented
+```
+
+Elevation provider проверен против `NÖ Atlas → Koordinaten / Höhe → Gelände` на четырёх контрольных точках. Максимальная absolute error в этой небольшой validation sample составила `2.80 m`; принятый критерий MR02 PoC — `<= 5 m` на выбранной sample.
+
+Terrain feature extraction реализован поверх `ElevationWindow`:
+
+```text
+ElevationWindow
+        ↓
+central 3x3 neighborhood
+        ↓
+Horn gradient
+        ↓
+TerrainFeatures
+    elevation_m
+    slope_deg
+    aspect_deg
+```
+
+Для окон `EPSG:3857` projected pixel resolution переводится в приблизительное ground distance через локальный scale factor Web Mercator. Для `EPSG:31259` resolution используется как метрическая напрямую. Неизвестный CRS обрабатывается fail-fast.
+
+Live smoke test на точке `47.7200, 15.9000`:
+
+```text
+elevation: 1212.0 m
+slope: 13.23°
+aspect: 341.57°  # NNW
+```
+
+Расчёт slope/aspect подтверждён unit tests на синтетических DEM и live smoke test на реальном remote window. Это **не является независимой authoritative validation slope/aspect**.
+
+Полная документация по DEM, operational provider, ограничениям, validation sample и terrain feature extraction вынесена в:
+
+```text
+docs/data_sources/DEM.md
 ```
 
 ### Решение
 
-Для первой исследовательской области вокруг Вены authoritative source остаётся **DGM Niederösterreich 10 m**, а Geoland.at DGM Österreich — nationwide fallback.
-
-Для MR02 PoC operational access выполняется через `AustrianElevationProvider`. Полный GeoTIFF не является runtime dependency проекта. Замена operational provider-а в будущем не должна требовать изменения terrain feature extraction.
+Полный GeoTIFF не является обязательной runtime dependency проекта. Обычный pipeline использует небольшие remote windows через `ElevationProvider`; local cache является следующим техническим блоком MR02.
 
 ---
 
@@ -728,7 +573,7 @@ field_observation
 
 ## P0 — подтвердить до первого GIS prototype
 
-1. DEM access PoC: remote window + elevation validation against official DGM — **completed for MR02 PoC**.
+1. DEM access + terrain feature PoC — **completed through MR-2.3; local cache remains**.
 2. GeoSphere geology query/download.
 3. GeoSphere weather API.
 4. Forest-mask source BFW.
@@ -782,25 +627,25 @@ known_limitations:
 
 # 17. Следующий конкретный шаг
 
-DEM operational access и elevation validation для MR02 PoC подтверждены.
+DEM operational access, elevation validation и terrain feature extraction завершены для текущего MR02 PoC.
 
-Следующий технический блок внутри MR02:
+Следующий технический блок:
 
 ```text
+MR-2.4 — local elevation cache
+
+remote provider
+        ↓
+cache wrapper
+        ↓
+ElevationProvider contract
+        ↓
 ElevationWindow
         ↓
 terrain feature extraction
-        ↓
-elevation / slope / aspect
-        ↓
-tests on synthetic surfaces
-        ↓
-validation on real DEM windows
 ```
 
-Перед расчётом slope/aspect необходимо явно определить горизонтальный шаг в физических метрах для окон `EPSG:3857`, чтобы проекционное масштабирование Web Mercator не искажало производные terrain features.
-
-После завершения terrain feature extraction продолжаем оставшиеся P0-источники в порядке:
+После завершения cache-блока продолжаем оставшиеся P0-источники:
 
 ```text
 1. GeoSphere geology
