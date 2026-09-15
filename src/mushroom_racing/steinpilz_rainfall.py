@@ -32,17 +32,20 @@ Used by:
     MR-5 Steinpilz scoring pipeline.
 
 Notes:
-    Этот слой пока только описывает доступный rainfall context.
+    Этот слой описывает доступный rainfall context и раскладывает
+    вложенные rolling totals на непересекающиеся временные интервалы.
 
     Он намеренно не преобразует rainfall в moisture_score, потому что
     текущие данные не содержат 90-day rainfall context, rainfall anomaly,
     measured soil moisture или drought index.
 
-    Rolling rainfall windows являются вложенными и поэтому не должны
-    независимо усредняться как пять отдельных ecological signals.
+    rain_28d_mm используется как primary rainfall context. Это
+    explainable approximation к multi-week antecedent rainfall context,
+    а не биологический threshold.
 
     Известный rainfall 0.0 mm является реальным наблюдением, а не
-    missing value.
+    missing value. Неконсистентные cumulative totals не исправляются
+    молча: соответствующий derived bin остаётся unknown.
 """
 
 from __future__ import annotations
@@ -52,46 +55,112 @@ from dataclasses import dataclass
 from mushroom_racing.domain.weather import WeatherSnapshot
 
 
+RAINFALL_TOLERANCE_MM = 1e-6
+
+
 @dataclass(frozen=True, slots=True)
 class SteinpilzRainfallInterpretation:
     """Species-specific description of available rainfall context."""
 
-    score: float | None
+    primary_rainfall_context_mm: float | None
+
+    rain_d01_03_mm: float | None
+    rain_d04_07_mm: float | None
+    rain_d08_14_mm: float | None
+    rain_d15_21_mm: float | None
+    rain_d22_28_mm: float | None
+
+    moisture_score: float | None
+
     reasons: tuple[str, ...]
+
+
+def _rainfall_difference(
+    *,
+    earlier_label: str,
+    earlier_mm: float | None,
+    later_label: str,
+    later_mm: float | None,
+    reasons: list[str],
+) -> float | None:
+    """Return rainfall in the interval between two cumulative windows."""
+
+    if earlier_mm is None or later_mm is None:
+        return None
+
+    difference = later_mm - earlier_mm
+
+    if difference < -RAINFALL_TOLERANCE_MM:
+        reasons.append(
+            "Inconsistent rainfall totals: "
+            f"{later_label} rainfall ({later_mm:.2f} mm) is lower than "
+            f"{earlier_label} rainfall ({earlier_mm:.2f} mm)."
+        )
+        return None
+
+    # Tiny negative values within tolerance are floating-point noise.
+    if difference < 0.0:
+        return 0.0
+
+    return difference
 
 
 def interpret_steinpilz_rainfall(
     weather: WeatherSnapshot,
 ) -> SteinpilzRainfallInterpretation:
-    """Describe available rolling rainfall windows.
+    """Build an explainable rainfall-support context.
 
-    MR-5.3e intentionally does not derive an ecological moisture score
+    MR-5.3f intentionally does not derive an ecological moisture score
     from rainfall alone.
 
-    Missing windows remain unknown. Known zero rainfall remains a real
-    value. No rainfall threshold creates an ecological hard exclusion.
-    """
+    The 28-day cumulative total is retained as the primary descriptive
+    rainfall context. Nested totals are transformed into non-overlapping
+    bins for explanation and QA only.
 
-    windows = (
-        ("3-day", weather.rain_3d_mm),
-        ("7-day", weather.rain_7d_mm),
-        ("14-day", weather.rain_14d_mm),
-        ("21-day", weather.rain_21d_mm),
-        ("28-day", weather.rain_28d_mm),
-    )
+    Missing endpoints produce unknown derived bins. Inconsistent
+    cumulative totals are reported explicitly and are never silently
+    corrected into valid rainfall.
+    """
 
     reasons: list[str] = []
 
-    for label, rainfall_mm in windows:
-        if rainfall_mm is None:
-            reasons.append(
-                f"{label} rainfall is unknown; "
-                "no rainfall context was inferred from this window."
-            )
-            continue
+    rain_d01_03_mm = weather.rain_3d_mm
 
+    rain_d04_07_mm = _rainfall_difference(
+        earlier_label="3-day",
+        earlier_mm=weather.rain_3d_mm,
+        later_label="7-day",
+        later_mm=weather.rain_7d_mm,
+        reasons=reasons,
+    )
+    rain_d08_14_mm = _rainfall_difference(
+        earlier_label="7-day",
+        earlier_mm=weather.rain_7d_mm,
+        later_label="14-day",
+        later_mm=weather.rain_14d_mm,
+        reasons=reasons,
+    )
+    rain_d15_21_mm = _rainfall_difference(
+        earlier_label="14-day",
+        earlier_mm=weather.rain_14d_mm,
+        later_label="21-day",
+        later_mm=weather.rain_21d_mm,
+        reasons=reasons,
+    )
+    rain_d22_28_mm = _rainfall_difference(
+        earlier_label="21-day",
+        earlier_mm=weather.rain_21d_mm,
+        later_label="28-day",
+        later_mm=weather.rain_28d_mm,
+        reasons=reasons,
+    )
+
+    if weather.rain_28d_mm is None:
+        reasons.append("Primary 28-day rainfall context is unknown.")
+    else:
         reasons.append(
-            f"{label} rainfall is {rainfall_mm:.2f} mm."
+            "Primary 28-day rainfall context is "
+            f"{weather.rain_28d_mm:.2f} mm."
         )
 
     reasons.append(
@@ -101,6 +170,12 @@ def interpret_steinpilz_rainfall(
     )
 
     return SteinpilzRainfallInterpretation(
-        score=None,
+        primary_rainfall_context_mm=weather.rain_28d_mm,
+        rain_d01_03_mm=rain_d01_03_mm,
+        rain_d04_07_mm=rain_d04_07_mm,
+        rain_d08_14_mm=rain_d08_14_mm,
+        rain_d15_21_mm=rain_d15_21_mm,
+        rain_d22_28_mm=rain_d22_28_mm,
+        moisture_score=None,
         reasons=tuple(reasons),
     )
