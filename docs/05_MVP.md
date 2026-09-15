@@ -1,112 +1,635 @@
 # 05 — MVP
 
-## MVP question
+## Цель
 
-Can the application rank a small set of candidate forest areas for Steinpilz and explain the result?
-
-## MVP scope
-
-### Input
-
-For each candidate spot:
-
-- tree suitability;
-- geology/soil suitability;
-- rainfall history;
-- temperature context;
-- aspect/elevation suitability;
-- vegetation indicators;
-- disturbance;
-- legal status;
-- data completeness.
-
-### Output
+MVP должен позволить пользователю открыть приложение на телефоне, выбрать область поиска вокруг Вены и последовательно перейти:
 
 ```text
-Spot: Mariensee / Kampstein sector
-Habitat: 91/100
-Current conditions: 84/100
-Confidence: 63/100
-Opportunity: 88/100
-
-Why:
-+ strong host-tree mix
-+ acidic/silicate setting
-+ favourable elevation
-+ recent rainfall
-+ north-east exposure
-- drought history still uncertain
+регион
+→ перспективная зона
+→ локальный сектор
+→ объяснение прогноза
+→ возможный маршрут поиска
+→ полевое наблюдение
 ```
 
-## MVP screens
+Главная задача MVP:
 
-### 1. Map / candidate list
+> помочь выбрать, куда разумнее поехать за грибами сегодня, объяснить почему этот участок выглядит перспективным и предложить практический способ его проверить на местности.
 
-- green / yellow / red candidate sectors;
-- sort by Opportunity Score;
-- filter by species;
-- filter by distance later.
+Приложение не утверждает, что грибы в выбранном месте обязательно есть.
 
-### 2. Spot detail
+Оно показывает:
 
-- final score;
-- habitat score;
-- current conditions;
-- confidence;
-- reasons;
-- weather history;
-- legal status;
-- best search window.
+- насколько место подходит виду в принципе;
+- насколько текущие погодные условия благоприятны;
+- насколько надёжны входные данные;
+- почему участок получил такой score;
+- есть ли ограничения на доступ или сбор;
+- какие реальные наблюдения уже существуют для этого района.
 
-### 3. Field report
+---
 
-- found / not found;
-- species;
-- count;
-- location;
-- moisture;
-- vegetation;
-- trees;
-- photo;
-- notes.
+## 1. Стартовый экран
 
-## MVP technical stages
+Пользователь открывает web-приложение на телефоне.
 
-### MVP-A — CLI baseline
+Начальная точка поиска для первой версии фиксирована:
 
-- local sample data;
-- score calculation;
-- explanation;
-- tests.
+```text
+Vienna
+```
 
-### MVP-B — static map prototype
+Пользователь выбирает радиус:
 
-- geospatial candidate cells;
-- offline/sample GIS layers;
-- score displayed geographically.
+```text
+50 km
+100 km
+150 km
+200 km
+```
 
-### MVP-C — live weather
+После выбора открывается карта соответствующей территории.
 
-- weather import;
-- rolling rainfall aggregates;
-- dynamic Current Conditions Score.
+---
 
-### MVP-D — field observations
+## 2. Обзорная карта
 
-- save positive and negative observations;
-- display observation history.
+На первом уровне приложение не показывает тысячи мелких участков.
 
-### MVP-E — calibration
+Территория разбивается на относительно крупные аналитические зоны.
 
-- compare predicted vs observed;
-- adjust weights;
-- document validation.
+Каждая зона получает текущий Opportunity Score и отображается цветом.
 
-## Explicitly postponed
+Пример:
 
-- accounts/auth;
-- mobile app;
+```text
+green   — высокая текущая перспективность
+orange  — средняя перспективность
+yellow  — низкая / неопределённая перспективность
+```
+
+Цвет является только визуальным представлением score.
+
+Полное числовое значение и причины должны быть доступны после выбора зоны.
+
+Участки, где сбор или доступ подтверждённо запрещён, не должны отображаться как обычные перспективные зоны.
+
+Legal restrictions остаются hard filters.
+
+---
+
+## 3. Progressive spatial refinement
+
+Карта должна использовать несколько уровней пространственной детализации.
+
+На большой территории нет необходимости сразу рассчитывать scoring для каждой маленькой ячейки.
+
+Примерный принцип:
+
+```text
+радиус 200 km
+        ↓
+крупные analytical cells / regions
+        ↓ tap
+район
+        ↓
+более мелкие cells
+        ↓ tap
+локальный сектор
+        ↓
+детальная оценка
+```
+
+Размер ячеек не фиксируется MVP-спецификацией заранее.
+
+Он должен определяться позднее исходя из:
+
+- resolution исходных данных;
+- производительности;
+- полезности для пользователя;
+- точности модели.
+
+Главный принцип:
+
+> пространственное разрешение увеличивается по мере того, как пользователь приближает карту и выбирает конкретный район.
+
+---
+
+## 4. Выбор перспективной зоны
+
+При нажатии на крупную зону:
+
+1. карта приближается к её границам;
+2. загружается более детальный analytical layer;
+3. крупная зона разбивается на меньшие candidate sectors;
+4. каждому сектору рассчитывается собственный score.
+
+Пользователь снова видит цветовое ранжирование.
+
+Таким образом высокое значение большого региона не означает, что весь регион одинаково перспективен.
+
+---
+
+## 5. Карточка локального сектора
+
+После выбора конкретного сектора пользователь получает подробную оценку.
+
+Минимальный набор:
+
+```text
+Opportunity Score
+Habitat Score
+Current Conditions Score
+Confidence
+Legal status
+```
+
+Пример:
+
+```text
+Opportunity         84 / 100
+Habitat             91 / 100
+Current conditions  79 / 100
+Confidence          72 / 100
+```
+
+---
+
+## 6. Explainability
+
+Каждая рекомендация должна сопровождаться объяснением.
+
+Например:
+
+```text
+Почему участок интересен:
+
++ подходящий состав леса
++ силикатная геология
++ подходящая высота
++ северная / северо-восточная экспозиция
++ накопилось достаточно осадков
++ после существенного увлажнения прошло подходящее количество дней
+
+Что снижает оценку:
+
+- длительная предшествующая засуха
+- неполные данные о почве
+- часть леса недавно нарушена
+```
+
+Пользователь должен понимать не только итоговый score, но и причины.
+
+---
+
+## 7. Weather context
+
+Для выбранного сектора приложение показывает краткое объяснение текущих погодных условий.
+
+Например:
+
+```text
+Rain 14 days: 46 mm
+Rain 28 days: 71 mm
+Last significant wetting: 11 days ago
+Average temperature 14 days: 13.2 °C
+```
+
+Интерпретация:
+
+```text
+Недавно прошло достаточно дождя.
+
+После существенного увлажнения прошло достаточно времени для потенциального плодоношения.
+
+Текущая температура находится в благоприятном диапазоне.
+```
+
+Приложение не должно превращать один дождь или одну погодную величину в гарантию появления грибов.
+
+---
+
+## 8. Observations
+
+Для выбранного участка пользователь видит накопленную статистику полевых проверок.
+
+Отдельно учитываются:
+
+```text
+positive observations
+negative observations
+```
+
+Пример:
+
+```text
+Field observations: 10
+
+Successful searches: 7
+Negative searches:   3
+```
+
+Negative observation означает, что участок действительно проверяли, но target species не нашли.
+
+Это полноценные данные модели.
+
+---
+
+## 9. История находок
+
+Для positive observations MVP может показывать:
+
+```text
+date
+species
+count
+photo
+approximate environmental context
+```
+
+Например:
+
+```text
+09 Sep 2026
+Boletus edulis
+4 specimens
+```
+
+Точные приватные координаты находки не должны отображаться публично и не должны передаваться другим пользователям.
+
+---
+
+## 10. Новый участок
+
+Если участок ещё никто не проверял:
+
+```text
+Field observations: 0
+```
+
+Приложение показывает:
+
+> Этот сектор пока не имеет полевых наблюдений.
+
+Такой участок может быть особенно полезен для исследования и validation модели.
+
+Отсутствие статистики не должно автоматически снижать Habitat Score.
+
+Оно может снижать Confidence.
+
+---
+
+## 11. Маршруты поиска
+
+Для выбранного перспективного сектора приложение предлагает несколько возможных маршрутов.
+
+Маршрут должен начинаться в доступной точке рядом с дорогой или разрешённой парковкой.
+
+Предпочтительная форма:
+
+```text
+parking
+→ entry point
+→ candidate forest sectors
+→ return to parking
+```
+
+То есть маршрут по возможности является круговым.
+
+---
+
+## 12. Цель route generation
+
+Маршрут не должен быть обычным туристическим маршрутом между двумя точками.
+
+Цель:
+
+> провести пользователя через максимально полезную для поиска грибов территорию при разумной длине и времени маршрута.
+
+При построении маршрута позже могут учитываться:
+
+- Opportunity Score клеток;
+- legal/access restrictions;
+- существующие дороги и тропы;
+- elevation gain;
+- slope;
+- приблизительное время;
+- длина;
+- возвращение к автомобилю;
+- уже проверенные и ещё не проверенные зоны.
+
+---
+
+## 13. Варианты маршрутов
+
+Для MVP достаточно нескольких вариантов.
+
+Например:
+
+```text
+Short
+4.5 km
+~1 h 30 min
+
+Medium
+7.0 km
+~2 h 30 min
+
+Long
+10.0 km
+~3 h 30 min
+```
+
+Маршруты должны рассматриваться как candidate routes, а не как гарантия безопасного или разрешённого прохода.
+
+До использования маршрута legal/access layer должен исключить заведомо запрещённые территории.
+
+---
+
+## 14. Field workflow
+
+После поездки пользователь должен иметь возможность сохранить результат поиска.
+
+Минимально:
+
+```text
+found / not found
+target species
+count
+timestamp
+location
+searched time
+photo
+notes
+```
+
+Позже форма может включать:
+
+- деревья;
+- мох;
+- чернику;
+- влажность почвы;
+- disturbance;
+- canopy;
+- другие грибы.
+
+---
+
+## 15. Data flow
+
+Базовый runtime flow:
+
+```text
+user selects radius
+        ↓
+frontend requests visible area
+        ↓
+backend obtains static geodata
+        ↓
+backend obtains current / historical weather
+        ↓
+feature extraction
+        ↓
+legal filtering
+        ↓
+scoring
+        ↓
+GeoJSON analytical layer
+        ↓
+MapLibre visualization
+```
+
+При приближении:
+
+```text
+new bbox / selected region
+        ↓
+request higher-resolution features
+        ↓
+more detailed scoring
+        ↓
+new analytical layer
+```
+
+---
+
+## 16. Logical architecture
+
+```text
+basemap.at
+        ↓
+MapLibre frontend
+        ↑
+mushroom-racing analytical GeoJSON
+        ↑
+FastAPI
+        ↑
+feature extraction
+        ↑
+scoring engine
+        ↑
+data providers
+```
+
+Data providers:
+
+```text
+DEM
+geology
+forest
+weather
+protected areas
+legal/access
+observations
+```
+
+Presentation basemap не участвует в scoring.
+
+---
+
+## 17. MVP storage
+
+На первой версии не требуется сложная server database.
+
+Допустимый baseline:
+
+```text
+local/cache files
+GeoJSON / GeoPackage
+SQLite
+```
+
+Храниться должны:
+
+- обработанные candidate sectors;
+- cached source data;
+- scoring results при необходимости;
+- field observations;
+- metadata источников.
+
+PostgreSQL/PostGIS добавляется только тогда, когда объём пространственных данных или запросов действительно это потребует.
+
+---
+
+## 18. Что входит в первый usable MVP
+
+Первый usable mobile web MVP должен уметь:
+
+- открываться через обычный мобильный браузер;
+- выбирать радиус 50 / 100 / 150 / 200 км от Вены;
+- отображать overview analytical map;
+- показывать цветовое ранжирование регионов;
+- переходить от крупного региона к более детальному сектору;
+- рассчитывать Opportunity / Habitat / Current Conditions / Confidence;
+- объяснять причины оценки;
+- показывать weather context;
+- применять hard legal exclusions;
+- показывать existing positive и negative observations;
+- показывать фотографии прошлых находок;
+- корректно обрабатывать участок без истории наблюдений;
+- предлагать candidate circular route для выбранного сектора;
+- экспортировать маршрут в GPX для использования в Organic Maps.
+
+---
+
+## 19. Route MVP
+
+Route generation является частью полного полевого workflow MVP.
+
+Минимальная версия должна:
+
+- иметь известную стартовую точку рядом с дорогой или разрешённой парковкой;
+- возвращаться к стартовой точке;
+- избегать подтверждённо запрещённых зон;
+- проходить через несколько высоко оценённых candidate cells;
+- показывать длину маршрута;
+- показывать приблизительное время;
+- позволять экспортировать маршрут как GPX.
+
+Маршрут является candidate route, а не гарантией безопасного или юридически разрешённого прохода. Hard legal/access exclusions должны применяться до экспорта.
+
+Сложная оптимизация маршрутов, полноценная turn-by-turn navigation и собственный offline routing engine в первую версию не входят.
+
+---
+
+## 20. Organic Maps как внешний offline navigation layer
+
+`mushroom-racing` не реализует собственную полноценную offline-навигацию в MVP.
+
+После выбора candidate route приложение генерирует GPX и передаёт его через стандартный mobile open/share workflow во внешний offline map client — **Organic Maps**.
+
+Предпочтительный flow:
+
+```text
+mushroom-racing
+        ↓
+candidate circular route
+        ↓
+GPX track + waypoints
+        ↓
+mobile OS open/share action
+        ↓
+Organic Maps
+        ↓
+offline map + GPS + visible imported track
+```
+
+`mushroom-racing` отвечает за:
+
+- выбор перспективной территории;
+- scoring;
+- legal/access filtering;
+- выбор candidate cells;
+- построение кругового маршрута;
+- GPX track;
+- waypoints и пояснения.
+
+Organic Maps используется для:
+
+- offline basemap;
+- отображения текущей GPS-position;
+- pan/zoom;
+- отображения импортированного трека без мобильного интернета.
+
+GPX может содержать, например:
+
+```text
+P  Parking
+1  Start search
+2  High-opportunity sector
+3  North-east slope
+4  Wet hollow
+5  Observation context
+P  Return
+```
+
+Обязательный MVP contract:
+
+```text
+offline map
++ current GPS position
++ visible imported track
+```
+
+MVP не должен зависеть от наличия полноценной turn-by-turn или voice navigation непосредственно по импортированному GPX.
+
+Capabilities Organic Maps являются внешней зависимостью, поэтому перед реализацией необходимо повторно проверить актуальный GPX import и mobile open/share workflow.
+
+Точные координаты приватных hotspot-ов не должны автоматически включаться в экспортируемый маршрут.
+
+---
+
+## 21. Что пока не входит
+
+Первая версия не обязана иметь:
+
+- собственную offline-карту;
+- собственный GPS navigation engine;
+- turn-by-turn navigation;
+- voice guidance;
+- live GPS tracking внутри `mushroom-racing`;
+- полноценное автомобильное route planning;
+- сложную route optimization;
+- social features;
+- публичный обмен hotspot-ами;
+- accounts;
+- crowdsourcing;
 - image recognition;
-- social sharing;
-- advanced ML;
-- route optimization.
+- автоматическое определение вида гриба;
+- ML predictor;
+- гарантированную оценку наличия грибов;
+- real-time recalculation каждой маленькой ячейки всей Австрии.
+
+---
+
+## 22. Success criterion
+
+MVP считается полезным, если пользователь может выполнить полный сценарий:
+
+```text
+открыть приложение
+→ выбрать радиус
+→ найти перспективный регион
+→ приблизить карту
+→ выбрать локальный сектор
+→ понять причины score
+→ увидеть weather context
+→ увидеть историю наблюдений
+→ выбрать candidate route
+→ экспортировать GPX
+→ открыть маршрут в Organic Maps
+→ проверить участок в лесу
+→ сохранить positive или negative observation
+```
+
+Таким образом приложение замыкает основной цикл:
+
+```text
+prediction
+→ field verification
+→ observation
+→ future model improvement
+```
+
+Именно этот цикл является главным продуктовым результатом MVP.

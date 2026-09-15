@@ -120,16 +120,50 @@ geology slice: 27 passed
 full repository suite: 111 passed
 ```
 
+### Forest mask block ✅
+
+Завершены:
+
+-   выбран официальный `Waldkarte BFW Österreich` как primary
+    forest-mask source;
+-   подтверждён live WFS 2.0 access path и feature type
+    `elu:ExistingLandUseObject`;
+-   реализованы `ForestStatus`, `ForestResult`, `ForestProvider`,
+    `ForestProviderError` и `AustrianForestProvider`;
+-   зафиксирована семантика `FOREST / NON_FOREST / UNKNOWN`;
+-   production query использует точный FES 2.0 `Intersects` с
+    `gml:Point`;
+-   positive control `47.7200, 15.9000` подтверждён как `FOREST`;
+-   negative lake control `47.8520556, 16.7713333` подтверждён как
+    `NON_FOREST`;
+-   provider использует реальные `wfs:member`, а не ненадёжный
+    `numberReturned`;
+-   transport / HTTP / malformed XML errors обрабатываются fail-fast
+    через `ForestProviderError`;
+-   production live smoke подтверждён через `AustrianForestProvider`.
+
+Проверка после MR-2.6:
+
+``` text
+forest slice: 27 passed
+full repository suite: 146 passed
+```
+
+Подробности:
+
+``` text
+docs/data_sources/FOREST.md
+```
+
 ### Осталось в MR-2
 
--   один forest layer;
 -   один protected-area layer;
 -   документированные лицензии для оставшихся выбранных источников.
 
 Следующий блок:
 
 ``` text
-BFW forest-mask source PoC
+protected-area geometry + licensing PoC
 ```
 
 Definition of Done MR-2:
@@ -182,37 +216,108 @@ Definition of Done MR-2:
 -   scenario tests;
 -   comparison against documented field observations.
 
-## MR-6 --- Map MVP
+## MR-6 --- Interactive Map MVP
 
 Результат:
 
 -   web-карта на MapLibre GL JS;
 -   `basemap.at` как default presentation basemap;
 -   собственный `mushroom-racing` analytical overlay поверх basemap;
--   candidate forest cells;
+-   выбор радиуса `50 / 100 / 150 / 200 km` от Вены;
+-   overview analytical zones / candidate cells;
 -   opportunity / habitat score visualization;
--   переключение релевантных аналитических слоёв;
--   spot details / explainability при выборе участка;
+-   progressive spatial refinement при выборе региона;
+-   более детальный analytical layer после zoom/selection;
+-   spot details: Habitat / Current Conditions / Opportunity /
+    Confidence;
+-   weather context и explainability;
 -   legal exclusions;
+-   отображение наличия или отсутствия field observations;
 -   корректная attribution для basemap.at и других отображаемых
     источников.
 
+Архитектурный принцип:
+
+``` text
+large search area
+        ↓
+coarse analytical layer
+        ↓ user selection
+smaller region
+        ↓
+higher-resolution analytical layer
+        ↓
+local candidate sector
+```
+
+Размеры analytical cells заранее не фиксируются и должны соответствовать
+resolution исходных данных, performance и полезности результата.
+
 Проверка:
 
--   карта воспроизводимо запускается локально;
+-   карта воспроизводимо запускается локально и через mobile browser;
+-   пользователь может выбрать каждый предусмотренный radius;
 -   basemap и analytical overlay загружаются независимо;
+-   выбор зоны приводит к загрузке более детального слоя;
+-   карточка сектора показывает score, confidence, reasons, weather
+    context и legal status;
+-   hard-excluded areas не отображаются как обычные перспективные
+    sectors;
 -   scoring core не зависит от доступности basemap;
 -   перед интеграцией подтверждены актуальный production endpoint и
     условия использования basemap.at.
 
-## MR-7 --- Field observation workflow
+## MR-7 --- Field workflow, routes and offline handoff
 
 Результат:
 
 -   positive reports;
 -   negative reports;
 -   observation persistence;
--   export.
+-   observation history;
+-   photo references;
+-   статистика для проверенного сектора;
+-   корректное состояние для сектора без observations;
+-   candidate circular routes от legal start / parking point;
+-   route length и приблизительное время;
+-   маршруты проходят через несколько высоко оценённых candidate cells;
+-   подтверждённые legal/access exclusions учитываются до экспорта;
+-   GPX export с track и waypoints;
+-   mobile open/share workflow в Organic Maps.
+
+Разделение ответственности:
+
+``` text
+mushroom-racing
+    scoring + candidate cells + routing + GPX
+        ↓
+Organic Maps
+    offline basemap + GPS + imported track display
+```
+
+MVP contract для external navigation:
+
+``` text
+offline map
++ current GPS position
++ visible imported track
+```
+
+Полноценная turn-by-turn / voice navigation по импортированному GPX не
+является обязательным требованием `mushroom-racing`.
+
+Проверка:
+
+-   positive и negative observations сохраняются и повторно загружаются;
+-   фото или ссылки на фото связаны с observation без публикации
+    приватных hotspot coordinates;
+-   для выбранного сектора строится хотя бы один замкнутый candidate
+    route;
+-   route начинается и заканчивается в одной стартовой точке;
+-   hard-excluded geometry не входит в маршрут;
+-   GPX проходит basic parser/schema validation;
+-   GPX открывается/importируется в актуальной версии Organic Maps после
+    повторной проверки поддерживаемого mobile workflow.
 
 ## MR-8 --- Calibration
 
@@ -223,6 +328,13 @@ Definition of Done MR-2:
 -   calibration report;
 -   documented model limitations.
 
+Проверка:
+
+-   positive и negative observations анализируются отдельно;
+-   calibration не использует только успешные находки;
+-   изменения weights имеют воспроизводимое обоснование;
+-   baseline и calibrated model можно сравнить на одном observation set.
+
 ## MR-9 --- GitHub portfolio release
 
 Результат:
@@ -232,12 +344,16 @@ Definition of Done MR-2:
 -   demo dataset;
 -   reproducible setup;
 -   release notes;
--   polished README.
+-   polished README;
+-   демонстрация полного workflow от map selection до GPX/field
+    observation без публикации приватных hotspot-ов.
 
 ## Позже
 
 -   multiple species;
 -   personalized models;
--   route planning;
+-   более сложная route optimization;
 -   confidence-aware recommendations;
--   statistical/ML calibration.
+-   statistical/ML calibration;
+-   собственная offline navigation только если появится обоснованная
+    необходимость.

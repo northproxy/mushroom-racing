@@ -299,3 +299,150 @@ validated analytical providers
 
 Scoring core не зависит от basemap.at и остаётся работоспособным без frontend-карты.
 
+---
+
+## ADR-010 — Карта использует progressive spatial refinement
+
+**Статус:** accepted
+
+### Решение
+
+Пользовательский map workflow строится иерархически: приложение не рассчитывает максимальное spatial resolution сразу для всей области поиска.
+
+На обзорном уровне пользователь выбирает радиус от Вены:
+
+```text
+50 / 100 / 150 / 200 km
+```
+
+После этого приложение отображает coarse analytical layer. При выборе перспективной зоны загружается или рассчитывается более детальный слой для меньшей территории.
+
+Принцип:
+
+```text
+large search area
+        ↓
+coarse analytical zones
+        ↓ user selection / zoom
+smaller region
+        ↓
+higher-resolution candidate cells
+        ↓
+local sector
+```
+
+Конкретный размер cells не фиксируется этим ADR и должен соответствовать resolution исходных данных, производительности и полезности результата.
+
+### Почему
+
+- нет необходимости вычислять детальные признаки для всей территории радиусом до 200 km;
+- coarse-to-fine workflow уменьшает объём передаваемых и рассчитываемых данных;
+- пользователь естественно переходит от выбора региона к конкретному лесному сектору;
+- высокая оценка большого региона не должна создавать впечатление, что вся его территория одинаково перспективна;
+- architecture остаётся совместимой с provider-based feature extraction и explainable scoring.
+
+### Следствие
+
+- API/frontend должны поддерживать запрос analytical data для текущего bbox / selected region;
+- детальность feature extraction может зависеть от уровня карты;
+- overview score и local-sector score являются разными spatial aggregates и не должны молча смешиваться;
+- legal hard exclusions применяются на каждом уровне, где соответствующая geometry доступна;
+- scoring core остаётся независимым от MapLibre и presentation basemap.
+
+---
+
+## ADR-011 — Organic Maps используется как внешний offline navigation layer через GPX
+
+**Статус:** accepted
+
+### Решение
+
+`mushroom-racing` не реализует собственную полноценную offline-навигацию в MVP.
+
+Приложение отвечает за:
+
+- выбор перспективного сектора;
+- построение candidate circular route;
+- legal/access filtering;
+- route waypoints;
+- экспорт маршрута в GPX.
+
+Дальнейшее использование маршрута в лесу передаётся внешнему mobile client — **Organic Maps**.
+
+Предпочтительный workflow:
+
+```text
+mushroom-racing routing
+        ↓
+GPX track + waypoints
+        ↓
+mobile OS open/share action
+        ↓
+Organic Maps
+        ↓
+offline map + GPS + imported track
+```
+
+### Почему
+
+- Organic Maps уже решает задачу offline basemap и отображения GPS position;
+- проекту не нужно создавать собственные offline map packages и navigation engine;
+- GPX является переносимым стандартным форматом;
+- scope MVP уменьшается без потери основного field workflow;
+- routing intelligence остаётся ответственностью `mushroom-racing`, а отображение offline-карты — внешнего клиента.
+
+### MVP contract
+
+Обязательный contract:
+
+```text
+offline map
++ current GPS position
++ visible imported track
+```
+
+Не является обязательным:
+
+```text
+turn-by-turn navigation
+voice guidance
+```
+
+`mushroom-racing` не должен зависеть от того, поддерживает ли внешнее приложение полноценную turn-by-turn navigation по произвольному импортированному GPX.
+
+### Приватность
+
+GPX не должен автоматически включать точные приватные координаты успешных hotspot-ов.
+
+Waypoints могут описывать:
+
+- parking / legal start;
+- entry point;
+- high-opportunity sector;
+- terrain/environment context;
+- return point.
+
+Добавление точной private observation coordinate требует отдельного явного действия пользователя.
+
+### Ограничения
+
+Capabilities Organic Maps являются внешней зависимостью и могут меняться.
+
+Перед реализацией MR-7 необходимо повторно проверить:
+
+- актуальный GPX import workflow;
+- mobile open/share behavior;
+- поддержку track и waypoint;
+- ограничения отображения импортированного маршрута.
+
+### Следствие
+
+В MVP не реализуются:
+
+- собственные offline tiles;
+- offline map package management;
+- GPS navigation engine;
+- voice guidance;
+- собственная turn-by-turn navigation.
+
+Полноценная собственная offline-навигация добавляется только при появлении отдельной подтверждённой необходимости.

@@ -25,62 +25,72 @@ DATA_SOURCE_SELECTION.md
 
 ## Source registry
 
-  -----------------------------------------------------------------------------
-  Layer             Primary candidate /     Needed fields     Status
-                    selected source                           
-  ----------------- ----------------------- ----------------- -----------------
-  Forest cover      BFW / Österreichische   forest mask,      candidate /
-                    Waldinventur            forest structure  research
+  ------------------------------------------------------------------------
+  Layer           Primary candidate /     Needed fields    Status
+                  selected source                          
+  --------------- ----------------------- ---------------- ---------------
+  Forest cover    BFW Waldkarte           forest /         selected
+                                          non-forest mask  primary source;
+                                                           MR-2.6
+                                                           provider +
+                                                           point
+                                                           Intersects
+                                                           validated
 
-  Tree species      BFW / Waldinventur /    Fichte, Buche,    candidate /
-                    remote-sensing products Tanne, Eiche,     research
-                                            Kiefer, mix       
+  Tree species    BFW / Waldinventur /    Fichte, Buche,   candidate /
+                  remote-sensing products Tanne, Eiche,    research
+                                          Kiefer, mix      
 
-  Forest soil       BFW Bodenkarte          soil type, pH     candidate /
-                    Niederösterreich        proxies, humus,   research
-                                            moisture context  
+  Forest soil     BFW Bodenkarte          soil type, pH    candidate /
+                  Niederösterreich        proxies, humus,  research
+                                          moisture context 
 
-  General soil      eBOD / bodenkarte.at    soil properties   secondary /
-                                            where applicable  caution
+  General soil    eBOD / bodenkarte.at    soil properties  secondary /
+                                          where applicable caution
 
-  Geology           GeoSphere Austria       raw geological    selected primary
-                    `GE.GeologicUnit_50k`   unit, material,   source; MR-2.5
-                                            representative    provider +
-                                            lithology         point-query PoC
-                                                              validated
+  Geology         GeoSphere Austria       raw geological   selected
+                  `GE.GeologicUnit_50k`   unit, material,  primary source;
+                                          representative   MR-2.5
+                                          lithology        provider +
+                                                           point-query PoC
+                                                           validated
 
-  DEM               Land NÖ DGM 10 m;       elevation, slope, authoritative
-                    Geoland.at nationwide   aspect            selected;
-                    fallback                                  provider +
-                                                              terrain +
-                                                              persistent cache
-                                                              PoC validated
+  DEM             Land NÖ DGM 10 m;       elevation,       authoritative
+                  Geoland.at nationwide   slope, aspect    selected;
+                  fallback                                 provider +
+                                                           terrain +
+                                                           persistent
+                                                           cache PoC
+                                                           validated
 
-  Hydrology         official/open GIS       streams, springs, research required
-                    source TBD              drainage          
+  Hydrology       official/open GIS       streams,         research
+                  source TBD              springs,         required
+                                          drainage         
 
-  Weather           GeoSphere Austria Data  rain,             selected primary
-                    Hub                     temperature,      source; PoC
-                                            humidity, wind    pending
+  Weather         GeoSphere Austria Data  rain,            selected
+                  Hub                     temperature,     primary source;
+                                          humidity, wind   PoC pending
 
-  Drought           GeoSphere-derived /     anomalies,        research required
-                    documented project      deficit           
-                    proxy                                     
+  Drought         GeoSphere-derived /     anomalies,       research
+                  documented project      deficit          required
+                  proxy                                    
 
-  Protected areas   official Austrian GIS + zone geometry,    candidate /
-                    Biosphärenpark          rules linkage     research
-                    Wienerwald                                
+  Protected areas official Austrian GIS + zone geometry,   candidate /
+                  Biosphärenpark          rules linkage    research
+                  Wienerwald                               
 
-  Roads/trails      official data + OSM     access, trail,    later research
-                    fallback                parking context   
+  Roads/trails    official data + OSM     access, trail,   later research
+                  fallback                parking context  
 
-  User observations mushroom-racing         positive +        planned
-                    application data        negative searches 
+  User            mushroom-racing         positive +       planned
+  observations    application data        negative         
+                                          searches         
 
-  Presentation      basemap.at              cartographic      selected;
-  basemap                                   background only   integration
-                                                              deferred to MR-6
-  -----------------------------------------------------------------------------
+  Presentation    basemap.at              cartographic     selected;
+  basemap                                 background only  integration
+                                                           deferred to
+                                                           MR-6
+  ------------------------------------------------------------------------
 
 ## Важное ограничение: eBOD
 
@@ -144,6 +154,48 @@ interpretation в source provider не выполняются.
 docs/data_sources/GEOLOGY.md
 ```
 
+## Forest mask: зафиксированное решение
+
+Для operational forest-mask point-query выбран официальный **Waldkarte
+BFW Österreich**.
+
+``` text
+WGS84 coordinate
+        ↓
+AustrianForestProvider
+        ↓
+BFW WFS 2.0
+        ↓
+FES Intersects(gml:Point, geometry)
+        ↓
+ForestResult
+        ↓
+FOREST / NON_FOREST / UNKNOWN
+```
+
+Для успешного запроса forestry feature означает `FOREST`, отсутствие
+`wfs:member` --- `NON_FOREST`, а семантически неожиданный source result
+--- `UNKNOWN`. Operational failures обрабатываются fail-fast через
+`ForestProviderError`.
+
+Provider использует фактические `wfs:member`: live PoC подтвердил, что
+`numberReturned="0"` может быть возвращён при существующем member.
+
+Production live smoke:
+
+``` text
+47.7200000, 15.9000000 -> FOREST
+47.8520556, 16.7713333 -> NON_FOREST
+```
+
+Waldkarte не является legal/access layer.
+
+Подробности:
+
+``` text
+docs/data_sources/FOREST.md
+```
+
 ## Presentation basemap: зафиксированное решение
 
 Для web-карты default presentation basemap --- **basemap.at**.
@@ -193,7 +245,7 @@ known_limitations:
 -   DEM operational access + validation against official DGM ---
     completed through MR-2.4;
 -   geology point-query --- completed through MR-2.5;
--   forest mask;
+-   forest mask --- completed through MR-2.6;
 -   protected-area geometry + licensing;
 -   weather API PoC.
 

@@ -144,42 +144,76 @@ knowledge и должны сохранять evidence level.
 
 # 3. Лес и древесные породы
 
-## Кандидат №1 --- BFW / Österreichische Waldinventur
+## Выбранный forest-mask source --- Waldkarte BFW Österreich
 
 **Организация:** Bundesforschungszentrum für Wald (BFW)
 
 Использование:
 
--   forest cover;
--   структура леса;
--   древесные породы;
--   Baumartenmischung;
--   потенциально возраст/структура древостоя.
+-   forest / non-forest mask;
+-   source-level подтверждение forestry land use;
+-   будущая фильтрация candidate cells.
 
-BFW сообщает, что Österreichische Waldinventur является долгосрочным
-мониторингом лесов Австрии, а современные remote-sensing методы
-позволяют создавать общенациональные тематические карты, включая
-Waldkarte и Baumartenmischungskarte.
+Для tree species BFW остаётся отдельным кандидатом; MR-2.6 валидирует
+именно forest mask.
 
 ### Статус
 
 ``` text
-primary candidate
+selected primary source for forest mask
+MR-2.6 operational point-query PoC: completed
+production provider: AustrianForestProvider
 ```
 
-### Что ещё нужно проверить
+### Проверенный access path
 
--   конкретный downloadable/API layer;
--   разрешение;
--   формат;
--   лицензия и право перераспространения;
--   насколько карта Baumartenmischung подходит для feature extraction на
-    уровне будущей ячейки/полигона.
+``` text
+WGS84 coordinate
+        ↓
+AustrianForestProvider
+        ↓
+BFW Waldkarte WFS 2.0
+        ↓
+FES Intersects(gml:Point, geometry)
+        ↓
+ForestResult
+        ↓
+FOREST / NON_FOREST / UNKNOWN
+```
 
-### Решение
+Успешный ответ без `wfs:member` означает `NON_FOREST`; forestry feature
+означает `FOREST`; корректный, но непонятный source result ---
+`UNKNOWN`. Transport / HTTP / malformed XML errors обрабатываются
+fail-fast через `ForestProviderError`.
 
-Для MR02 BFW является **первым источником, который исследуем для forest
-mask и tree species**.
+Live WFS показал, что `numberReturned="0"` может присутствовать при
+реальном `wfs:member`, поэтому provider считает фактические members.
+
+Контрольные live queries:
+
+``` text
+47.7200000, 15.9000000 -> FOREST
+47.8520556, 16.7713333 -> NON_FOREST
+```
+
+Лицензия выбранного dataset: CC BY 4.0. Waldkarte не является
+legal/access layer и не используется для вывода о праве доступа или
+сбора грибов.
+
+Подробности:
+
+``` text
+docs/data_sources/FOREST.md
+```
+
+### Tree species
+
+BFW / Österreichische Waldinventur / remote-sensing products остаются
+primary candidate для будущего tree-species layer.
+
+``` text
+status: candidate / research
+```
 
 ------------------------------------------------------------------------
 
@@ -654,7 +688,7 @@ field_observation
   Species ecology         scientific literature / research required
                           specialist sources      
 
-  Forest mask             BFW                     candidate
+  Forest mask             BFW Waldkarte           selected; MR-2.6
 
   Tree species            BFW                     candidate
 
@@ -779,7 +813,7 @@ integration: deferred to MR-6
 1.  DEM access + terrain feature + persistent cache PoC --- **completed
     through MR-2.4**.
 2.  GeoSphere geology point-query PoC --- **completed through MR-2.5**.
-3.  Forest-mask source BFW.
+3.  BFW forest-mask source PoC --- **completed through MR-2.6**.
 4.  Protected-area geometry + licensing.
 5.  GeoSphere weather API.
 
@@ -872,15 +906,27 @@ full repository suite: 111 passed
 production live smoke: Gutenstein Formation / limestone
 ```
 
+Forest-mask operational access завершён для текущего MR02 PoC.
+
+Проверки:
+
+``` text
+positive control: 47.7200000, 15.9000000 -> FOREST
+negative lake control: 47.8520556, 16.7713333 -> NON_FOREST
+query semantics: WFS 2.0 FES Intersects with gml:Point
+forest slice: 27 passed
+full repository suite: 146 passed
+production live smoke: FOREST / NON_FOREST
+```
+
 Следующий P0-блок:
 
 ``` text
-BFW forest-mask source PoC
+protected-area geometry + licensing PoC
 ```
 
-После forest mask:
+После protected areas:
 
 ``` text
-1. protected areas
-2. GeoSphere weather
+GeoSphere weather
 ```
